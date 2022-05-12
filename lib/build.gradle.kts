@@ -3,7 +3,7 @@ plugins {
     kotlin("android")
 
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("mvn-publish")
+//    id("mvn-publish")
 }
 
 val VERSION_NAME: String by project

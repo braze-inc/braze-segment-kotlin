@@ -1,3 +1,3 @@
-rootProject.name = "analytics-kotlin-destination-template"
+rootProject.name = "analytics-kotlin-braze"
 include(":lib")
-includeBuild("publishing-plugins")
+//includeBuild("publishing-plugins")

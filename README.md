@@ -1,23 +1,56 @@
-// add badges and stuff here
+# Analytics-Kotlin Braze
 
-# Destination
+Add Braze device mode support to your applications via this plugin for
+    [Analytics-Kotlin](https://github.com/segmentio/analytics-kotlin)
 
-## Getting Started
+To install the Segment-Braze integration, simply add this line to your analytics-kotlin gradle file:
+    samples/kotlin-android-app-destinations/build.gradle
+    Replacd <latest_version> with built number. For example 1.5.2.
 
-1. Create repo from this template. The name of the repo should follow this pattern `project-language-destination`. For example `analytics-kotlin-firebase`
-2. In `settings.gralde.kts`, change `rootProject.name` to match your repo name.
-3. In `gradle.properties`, update the fields with `<>` brackets
-4. Delete `com.segment.analytics.kotlin.destinations.Destination.kt`
-5. Create a directory with the destination name under `com.segment.analytics.kotlin.destinations`. For example Firebase, `com.segment.analytics.kotlin.destinations.firebase`
-6. Create your destination class under the directory created in step 5. For example Firebase, `com.segment.analytics.kotlin.destinations.firebase.Firebase.kt`
-7. update Android manifest with your package name. For example Firebase
-   ```xml
-    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        package="com.segment.analytics.kotlin.destinations.firebase">
-   ```
-8. Implement destination
-9. Add tests
+```
+implementation 'com.segment.analytics.kotlin.destinations:braze:<latest_version>'
+```
 
+Or the following for Kotlin DSL
+
+```
+implementation("com.segment.analytics.kotlin.destinations:braze:<latest_version>")
+```
+
+## Using the Plugin in your App
+
+Open the file where you setup and configure the Analytics-Kotlin library
+    samples/kotlin-android-app-destinations/src/main/java/com/segment/analytics/kotlin/destinations/MainApplication.kt
+    Add this plugin to the list of imports.
+
+```
+import com.segment.analytics.kotlin.destinations.braze.BrazeSession
+```
+
+Just under your Analytics-Kotlin library setup, call `analytics.add(plugin = ...)`
+to add an instance of the plugin to the Analytics timeline.
+
+```
+    analytics = Analytics("<YOUR WRITE KEY>", applicationContext) {
+        this.collectDeviceId = true
+        this.trackApplicationLifecycleEvents = true
+        this.trackDeepLinks = true
+        this.flushAt = 1
+        this.flushInterval = 0
+    }
+    analytics.add(plugin = BrazeSession())
+```
+
+Your events will now begin to flow to Braze in device mode.
+
+
+## Support
+
+Please use Github issues, Pull Requests, or feel free to reach out to our [support team](https://segment.com/help/).
+
+## Integrating with Segment
+
+Interested in integrating your service with us? Check out our [Partners page](https://segment.com/partners/) for more details.
 
 ## License
 ```
