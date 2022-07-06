@@ -1,3 +1,4 @@
 rootProject.name = "analytics-kotlin-braze"
 include(":lib")
-//includeBuild("publishing-plugins")
+includeBuild("publishing-plugins")
+include(":testapp")

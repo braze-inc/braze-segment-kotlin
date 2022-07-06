@@ -66,7 +66,7 @@ afterEvaluate {
             artifactId = getExtraString("POM_ARTIFACT_ID")
             version = getVersionName()
 
-            artifact("$buildDir/outputs/aar/${project.getName()}-release.aar")
+            artifact("$buildDir/outputs/aar/${project.name}-release.aar")
             artifact(tasks.named<Jar>("withJavadocJar"))
             artifact(tasks.named<Jar>("withSourcesJar"))
 
