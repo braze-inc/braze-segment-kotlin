@@ -40,11 +40,11 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
-    namespace = "com.segment.analytics.kotlin.destinations.braze"
 }
 
 repositories {
     mavenCentral()
+    maven (url = "https://appboy.github.io/appboy-android-sdk/sdk")
 }
 
 dependencies {
