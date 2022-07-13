@@ -15,7 +15,6 @@ import com.braze.models.outgoing.BrazeProperties
 import com.braze.support.isNullOrBlank
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
 import com.segment.analytics.kotlin.android.plugins.AndroidLifecycle
-import com.segment.analytics.kotlin.android.utilities.toJSONArray
 import com.segment.analytics.kotlin.core.*
 import com.segment.analytics.kotlin.core.platform.DestinationPlugin
 import com.segment.analytics.kotlin.core.platform.Plugin
@@ -26,7 +25,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import java.math.BigDecimal
 import java.time.*
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 
 private const val mAutomaticInAppMessageRegistrationEnabled = false
@@ -36,25 +37,23 @@ private val mContext: Context? = null
 private val mBraze: IAppboy? = null
 
 private const val DEFAULT_CURRENCY_CODE = "USD"
-private const val APPBOY_KEY = "Appboy"
 private val MALE_TOKENS: Set<String> = HashSet(
-    Arrays.asList(
+    listOf(
         "M",
         "MALE"
     )
 )
 private val FEMALE_TOKENS: Set<String> = HashSet(
-    Arrays.asList(
+    listOf(
         "F",
         "FEMALE"
     )
 )
 
-private const val API_KEY_KEY = "apiKey"
 private const val REVENUE_KEY = "revenue"
 private const val CURRENCY_KEY = "currency"
 
-private val RESERVED_KEYS = Arrays.asList(
+private val RESERVED_KEYS = listOf(
     "birthday", "email", "firstName",
     "lastName", "gender", "phone", "address", "anonymousId", "userId"
 )
@@ -72,11 +71,11 @@ class BrazeDestination(
     private val context: Context,
 ) : DestinationPlugin(), AndroidLifecycle {
 
-    internal var settings: BrazeSettings? = null
+    private var settings: BrazeSettings? = null
 
     override val key: String = "Braze Events"
 
-    var braze: Braze? = null
+    private var braze: Braze? = null
 
     override fun update(settings: Settings, type: Plugin.UpdateType) {
         super.update(settings, type)
@@ -96,31 +95,27 @@ class BrazeDestination(
     }
 
 
-    override fun track(payload: TrackEvent): BaseEvent? {
-        super.track(payload)
-        if (payload == null) {
-            return payload
-        }
+    override fun track(payload: TrackEvent): BaseEvent {
 
         val userId = payload.userId
 
         val eventName = payload.event
 
-        val settings = settings ?: return payload
+        settings ?: return payload
 
         val properties: JsonObject = payload.properties
 
         try {
             if (eventName == "Install Attributed") {
-                val campaignProps: JsonObject? = properties["campaign"] as JsonObject?
-                val currentUser: BrazeUser? = getInternalInstance()?.getCurrentUser()
+                val campaignProps: JsonObject? = properties["campaign"]?.safeJsonObject
+                val currentUser: BrazeUser? = getInternalInstance()?.currentUser
                 if (campaignProps != null && currentUser != null) {
                     currentUser.setAttributionData(
                         AttributionData(
-                            campaignProps.get("source").toString(),
-                            campaignProps.get("name").toString(),
-                            campaignProps.get("ad_group").toString(),
-                            campaignProps.get("ad_creative").toString()
+                            campaignProps["source"].toString(),
+                            campaignProps["name"].toString(),
+                            campaignProps["ad_group"].toString(),
+                            campaignProps["ad_creative"].toString()
                         )
                     )
                 }
@@ -133,17 +128,16 @@ class BrazeDestination(
             )
         }
 
-        val revenueObject: JsonElement? = properties.get(REVENUE_KEY)
-        val revenue: Double? = revenueObject.getDouble(REVENUE_KEY)
+        val revenue: Double? = properties.getDouble(REVENUE_KEY)
         if (revenue != 0.0 || eventName == "Order Completed" || eventName == "Completed Order") {
-            val currencyCode: String? =
-                if (isNullOrBlank(properties.get("currency").toString()))
+            val currencyCode: String =
+                if (isNullOrBlank(properties[CURRENCY_KEY].toString()))
                     DEFAULT_CURRENCY_CODE
-                else properties.get(CURRENCY_KEY).toString()
+                else properties[CURRENCY_KEY].toString()
 
-            if (properties.get("products") != null) {
+            if (properties["products"]?.safeJsonArray?.toContent()) {
 
-                properties?.let {
+                properties.let {
                     for (product in properties.get("products")) {
                         logPurchaseForSingleItem(
                             product.get("id").toString(),
@@ -162,7 +156,7 @@ class BrazeDestination(
                 )
             }
         } else {
-            if (properties == null || properties.size == 0) {
+            if (properties.isEmpty()) {
                 analytics.log(String.format("Calling braze.logCustomEvent for event %s", eventName))
                 getInternalInstance()?.logCustomEvent(eventName)
             } else {
@@ -177,7 +171,7 @@ class BrazeDestination(
     }
 
 
-    override fun identify(payload: IdentifyEvent): BaseEvent? {
+    override fun identify(payload: IdentifyEvent): BaseEvent {
 
         val userId: String = payload.userId
         if (!isNullOrBlank(userId)) {
@@ -186,57 +180,51 @@ class BrazeDestination(
 
         val traits: Traits = payload.traits
 
-        val name: String = traits.get("name").toString()
+        val name: String = traits["name"].toString()
 
-        val currentUser: BrazeUser? = getInternalInstance()?.getCurrentUser()
+        val currentUser: BrazeUser? = getInternalInstance()?.currentUser
         if (currentUser == null) {
             analytics.log("Braze.getCurrentUser() was null, aborting identify")
             return payload
         }
 
 
-        //val birthdayString: String = traits.get("birthday").toString()
-        //val birthday: ZonedDateTime = ZonedDateTime(birthdayString).toString()
-
-        val birthday: Date = traits.get("birthday")
-
-        if (birthday != null) {
-            val birthdayCal = Calendar.getInstance(Locale.US)
-            birthdayCal.time = birthday
-            currentUser.setDateOfBirth(
-                birthdayCal[Calendar.YEAR],
-                Month.values()[birthdayCal[Calendar.MONTH]],
-                birthdayCal[Calendar.DAY_OF_MONTH]
-            )
-        }
+        val birthday = Date(traits["birthday"].toString())
+        val birthdayCal = Calendar.getInstance(Locale.US)
+        birthdayCal.time = birthday
+        currentUser.setDateOfBirth(
+            birthdayCal[Calendar.YEAR],
+            Month.values()[birthdayCal[Calendar.MONTH]],
+            birthdayCal[Calendar.DAY_OF_MONTH]
+        )
 
 
-        val email: String? = traits.get("email").toString()
+        val email: String = traits["email"].toString()
         if (!isNullOrBlank(email)) {
             currentUser.setEmail(email)
         }
 
-        val firstName: String? = traits.get("firstName").toString()
+        val firstName: String = traits["firstName"].toString()
         if (!isNullOrBlank(firstName)) {
             currentUser.setFirstName(firstName)
         }
 
-        val lastName: String? = traits.get("lastName").toString()
+        val lastName: String = traits["lastName"].toString()
        if (!isNullOrBlank(lastName)) {
             currentUser.setLastName(lastName)
         }
 
-        val gender: String? = traits.get("gender").toString()
+        val gender: String = traits["gender"].toString()
         if (!isNullOrBlank(gender)) {
             if (MALE_TOKENS.contains(
-                    gender?.uppercase(
+                    gender.uppercase(
                         Locale.getDefault()
                     )
                 )
             ) {
                 currentUser.setGender(Gender.MALE)
             } else if (FEMALE_TOKENS.contains(
-                    gender?.uppercase(
+                    gender.uppercase(
                         Locale.getDefault()
                     )
                 )
@@ -245,49 +233,47 @@ class BrazeDestination(
             }
         }
 
-        val phone: String? = traits.get("phone").toString()
+        val phone: String = traits["phone"].toString()
         if (!isNullOrBlank(phone)) {
             currentUser.setPhoneNumber(phone)
         }
 
 
-        val address: String? = traits.get("address").toString()
-        if (address != null) {
-            val city: String? = traits.get("city").toString()
-            if (!isNullOrBlank(city)) {
-                currentUser.setHomeCity(city)
-            }
-            val country: String? = traits.get("country").toString()
-            if (!isNullOrBlank(country)) {
-                currentUser.setCountry(country)
-            }
+        val address: String = traits["address"].toString()
+        val city: String = traits["city"].toString()
+        if (!isNullOrBlank(city)) {
+            currentUser.setHomeCity(city)
+        }
+        val country: String = traits["country"].toString()
+        if (!isNullOrBlank(country)) {
+            currentUser.setCountry(country)
         }
 
-        for (key: String? in traits.get("keySet")) {
+        for (key: String in traits["keySet"].toString()) {
             if (RESERVED_KEYS.contains( key )) {
                 analytics.log(String.format("Skipping reserved key %s", key))
                 continue
             }
             val value: Any? = traits[key]
             if (value is Boolean) {
-                currentUser.setCustomUserAttribute(key!!, (value as Boolean?)!!)
+                currentUser.setCustomUserAttribute(key, (value as Boolean?)!!)
             } else if (value is Int) {
-                currentUser.setCustomUserAttribute(key!!, (value as Int?)!!)
+                currentUser.setCustomUserAttribute(key, (value as Int?)!!)
             } else if (value is Double) {
-                currentUser.setCustomUserAttribute(key!!, (value as Double?)!!)
+                currentUser.setCustomUserAttribute(key, (value as Double?)!!)
             } else if (value is Float) {
-                currentUser.setCustomUserAttribute(key!!, (value as Float?)!!)
+                currentUser.setCustomUserAttribute(key, (value as Float?)!!)
             } else if (value is Long) {
-                currentUser.setCustomUserAttribute(key!!, (value as Long?)!!)
+                currentUser.setCustomUserAttribute(key, (value as Long?)!!)
             } else if (value is Date) {
                 val secondsFromEpoch = value.time / 1000L
-                currentUser.setCustomUserAttributeToSecondsFromEpoch(key!!, secondsFromEpoch)
+                currentUser.setCustomUserAttributeToSecondsFromEpoch(key, secondsFromEpoch)
             } else if (value is String) {
-                currentUser.setCustomUserAttribute(key!!, (value as String?)!!)
+                currentUser.setCustomUserAttribute(key, (value as String?)!!)
             } else if (value is Array<*>) {
-                currentUser.setCustomAttributeArray(key!!, (value as Array<String?>?)!!)
+                currentUser.setCustomAttributeArray(key, (value as Array<String?>?)!!)
             } else if (value is List<*>) {
-                val valueArrayList = ArrayList(value as Collection<Any>?)
+                val valueArrayList = ArrayList(value as Collection<Any>)
                 val stringValueList: MutableList<String> = ArrayList()
                 for (objectValue: Any? in valueArrayList) {
                     if (objectValue is String) {
@@ -297,7 +283,7 @@ class BrazeDestination(
                 if (stringValueList.size > 0) {
                     val arrayValue = arrayOfNulls<String>(stringValueList.size)
                     currentUser.setCustomAttributeArray(
-                        key!!,
+                        key,
                         arrayValue
                     )
                }
@@ -313,7 +299,7 @@ class BrazeDestination(
     }
 
 
-    override fun group(payload: GroupEvent): BaseEvent? {
+    override fun group(payload: GroupEvent): BaseEvent {
 
         val groupIdKey: String = "groupId" + payload.groupId
         if (!isNullOrBlank(groupIdKey)) {
@@ -332,7 +318,7 @@ class BrazeDestination(
             getInternalInstance()?.changeUser(userId)
         }
 
-        val currentUser: BrazeUser? = getInternalInstance()?.getCurrentUser()
+        val currentUser: BrazeUser? = getInternalInstance()?.currentUser
         if (currentUser == null) {
             analytics.log("Braze.getCurrentUser() was null, aborting identify")
             return payload
@@ -341,23 +327,21 @@ class BrazeDestination(
 
         val messageId = payload.messageId
 
-        val timeStamp: Date = traits.get("timestamp")
-        if (timeStamp != null) {
-            val timeStampCal = Calendar.getInstance(Locale.US)
-            timeStampCal.time = timeStamp
-            currentUser.setDateOfBirth(
-                timeStampCal[Calendar.YEAR],
-                Month.values()[timeStampCal[Calendar.MONTH]],
-                timeStampCal[Calendar.DAY_OF_MONTH]
-            )
-        }
+        val timeStamp = Date(traits["timestamp"].toString())
+        val timeStampCal = Calendar.getInstance(Locale.US)
+        timeStampCal.time = timeStamp
+        currentUser.setDateOfBirth(
+            timeStampCal[Calendar.YEAR],
+            Month.values()[timeStampCal[Calendar.MONTH]],
+            timeStampCal[Calendar.DAY_OF_MONTH]
+        )
 
-        val email: String? = traits.get("email").toString()
+        val email: String = traits["email"].toString()
         if (!isNullOrBlank(email)) {
             currentUser.setEmail(email)
         }
 
-        val projectId: String = traits.get("projectId").toString()
+        val projectId: String = traits["projectId"].toString()
 
         return payload
     }
@@ -385,7 +369,7 @@ class BrazeDestination(
         }
     }
 
-    fun getInternalInstance(): IAppboy? {
+    private fun getInternalInstance(): IAppboy? {
         return if (mContext != null) {
             Braze.getInstance(mContext)
         } else {
@@ -432,7 +416,7 @@ class BrazeDestination(
         price: BigDecimal?,
         propertiesJson: JsonObject?
     ) {
-        if (propertiesJson == null || propertiesJson.size == 0) {
+        if (propertiesJson == null || propertiesJson.isEmpty()) {
             analytics.log(
                 String.format("Calling braze.logPurchase for purchase %s for %.02f %s"
                     + " with no properties.", productId, price, currencyCode))
