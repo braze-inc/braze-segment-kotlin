@@ -135,17 +135,16 @@ class BrazeDestination(
                     DEFAULT_CURRENCY_CODE
                 else properties[CURRENCY_KEY].toString()
 
-            if (properties["products"]?.safeJsonArray?.toContent()) {
+            if (properties.safeJsonObject!!.containsKey("products")) {
 
                 properties.let {
-                    for (product in properties.get("products")) {
+                    for (product in properties.get("products")?.safeJsonArray!!)
                         logPurchaseForSingleItem(
-                            product.get("id").toString(),
+                            product.jsonObject.getString("id"),
                             currencyCode,
-                            BigDecimal.valueOf(product.get("price").toDouble()),
+                            BigDecimal.valueOf(product.jsonObject.getString("price")?.toDouble()!!),
                             properties
                         )
-                    }
                 }
             } else {
                 logPurchaseForSingleItem(
@@ -249,29 +248,30 @@ class BrazeDestination(
             currentUser.setCountry(country)
         }
 
-        for (key: String in traits["keySet"].toString()) {
-            if (RESERVED_KEYS.contains( key )) {
-                analytics.log(String.format("Skipping reserved key %s", key))
+        for (key: Char in traits["keySet"].toString()) {
+            val keyString: String = key.toString()
+            if (RESERVED_KEYS.contains( keyString )) {
+                analytics.log(String.format("Skipping reserved key %s", keyString))
                 continue
             }
-            val value: Any? = traits[key]
+            val value: Any? = traits[keyString]
             if (value is Boolean) {
-                currentUser.setCustomUserAttribute(key, (value as Boolean?)!!)
+                currentUser.setCustomUserAttribute(keyString, (value as Boolean?)!!)
             } else if (value is Int) {
-                currentUser.setCustomUserAttribute(key, (value as Int?)!!)
+                currentUser.setCustomUserAttribute(keyString, (value as Int?)!!)
             } else if (value is Double) {
-                currentUser.setCustomUserAttribute(key, (value as Double?)!!)
+                currentUser.setCustomUserAttribute(keyString, (value as Double?)!!)
             } else if (value is Float) {
-                currentUser.setCustomUserAttribute(key, (value as Float?)!!)
+                currentUser.setCustomUserAttribute(keyString, (value as Float?)!!)
             } else if (value is Long) {
-                currentUser.setCustomUserAttribute(key, (value as Long?)!!)
+                currentUser.setCustomUserAttribute(keyString, (value as Long?)!!)
             } else if (value is Date) {
                 val secondsFromEpoch = value.time / 1000L
-                currentUser.setCustomUserAttributeToSecondsFromEpoch(key, secondsFromEpoch)
+                currentUser.setCustomUserAttributeToSecondsFromEpoch(keyString, secondsFromEpoch)
             } else if (value is String) {
-                currentUser.setCustomUserAttribute(key, (value as String?)!!)
+                currentUser.setCustomUserAttribute(keyString, (value as String?)!!)
             } else if (value is Array<*>) {
-                currentUser.setCustomAttributeArray(key, (value as Array<String?>?)!!)
+                currentUser.setCustomAttributeArray(keyString, (value as Array<String?>?)!!)
             } else if (value is List<*>) {
                 val valueArrayList = ArrayList(value as Collection<Any>)
                 val stringValueList: MutableList<String> = ArrayList()
@@ -283,14 +283,14 @@ class BrazeDestination(
                 if (stringValueList.size > 0) {
                     val arrayValue = arrayOfNulls<String>(stringValueList.size)
                     currentUser.setCustomAttributeArray(
-                        key,
+                        keyString,
                         arrayValue
                     )
                }
             } else {
                 analytics.log(
                     String.format("Braze can't map segment value for custom Braze user "
-                            + "attribute with key %s and value %s", key, value
+                            + "attribute with key %s and value %s", keyString, value
                 ))
             }
         }
