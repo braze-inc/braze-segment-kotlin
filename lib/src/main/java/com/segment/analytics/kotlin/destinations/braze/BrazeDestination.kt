@@ -138,13 +138,18 @@ class BrazeDestination(
             if (properties.safeJsonObject!!.containsKey("products")) {
 
                 properties.let {
-                    for (product in properties.get("products")?.safeJsonArray!!)
-                        logPurchaseForSingleItem(
-                            product.jsonObject.getString("id"),
-                            currencyCode,
-                            BigDecimal.valueOf(product.jsonObject.getString("price")?.toDouble()!!),
-                            properties
-                        )
+                    for (product in properties.get("products")?.safeJsonArray!!) {
+                        if (product != null) {
+                            logPurchaseForSingleItem(
+                                product.jsonObject.getString("id"),
+                                currencyCode,
+                                BigDecimal.valueOf(
+                                    product.jsonObject.getString("price")?.toDouble()!!
+                                ),
+                                properties
+                            )
+                        }
+                    }
                 }
             } else {
                 logPurchaseForSingleItem(
