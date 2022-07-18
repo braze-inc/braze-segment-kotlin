@@ -24,7 +24,6 @@ import com.segment.analytics.kotlin.core.utilities.getDouble
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import java.math.BigDecimal
-import java.time.*
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -97,8 +96,6 @@ class BrazeDestination(
 
     override fun track(payload: TrackEvent): BaseEvent {
 
-        val userId = payload.userId
-
         val eventName = payload.event
 
         settings ?: return payload
@@ -135,20 +132,17 @@ class BrazeDestination(
                     DEFAULT_CURRENCY_CODE
                 else properties[CURRENCY_KEY].toString()
 
-            if (properties.safeJsonObject!!.containsKey("products")) {
-
-                properties.let {
-                    for (product in properties.get("products")?.safeJsonArray!!) {
-                        if (product != null) {
-                            logPurchaseForSingleItem(
-                                product.jsonObject.getString("id"),
-                                currencyCode,
-                                BigDecimal.valueOf(
-                                    product.jsonObject.getString("price")?.toDouble()!!
-                                ),
-                                properties
-                            )
-                        }
+            if (properties.containsKey("products")) {
+                properties["products"]?.safeJsonArray?.let { array ->
+                    for (product in array) {
+                        logPurchaseForSingleItem(
+                            product.jsonObject.getString("id"),
+                            currencyCode,
+                            BigDecimal.valueOf(
+                                product.jsonObject.getString("price")?.toDouble()!!
+                            ),
+                            properties
+                        )
                     }
                 }
             } else {
@@ -311,11 +305,6 @@ class BrazeDestination(
             getInternalInstance()?.changeUser(groupIdKey)
         }
 
-        val traits: Traits = payload.traits
-        for( trait in traits) {
-
-        }
-
         val type = payload.type
 
         val userId: String = payload.userId
@@ -329,24 +318,27 @@ class BrazeDestination(
             return payload
         }
 
-
         val messageId = payload.messageId
 
-        val timeStamp = Date(traits["timestamp"].toString())
-        val timeStampCal = Calendar.getInstance(Locale.US)
-        timeStampCal.time = timeStamp
-        currentUser.setDateOfBirth(
-            timeStampCal[Calendar.YEAR],
-            Month.values()[timeStampCal[Calendar.MONTH]],
-            timeStampCal[Calendar.DAY_OF_MONTH]
-        )
+        val traits: Traits = payload.traits
+        for( trait in traits) {
 
-        val email: String = traits["email"].toString()
-        if (!isNullOrBlank(email)) {
-            currentUser.setEmail(email)
+            val timeStamp = Date(traits["timestamp"].toString())
+            val timeStampCal = Calendar.getInstance(Locale.US)
+            timeStampCal.time = timeStamp
+            currentUser.setDateOfBirth(
+                timeStampCal[Calendar.YEAR],
+                Month.values()[timeStampCal[Calendar.MONTH]],
+                timeStampCal[Calendar.DAY_OF_MONTH]
+            )
+
+            val email: String = traits["email"].toString()
+            if (!isNullOrBlank(email)) {
+                currentUser.setEmail(email)
+            }
+
+            val projectId: String = traits["projectId"].toString()
         }
-
-        val projectId: String = traits["projectId"].toString()
 
         return payload
     }
@@ -385,18 +377,17 @@ class BrazeDestination(
     override fun flush() {
         super.flush()
         analytics.log("Calling braze.requestImmediateDataFlush().")
-        getInternalInstance()!!.requestImmediateDataFlush()
+        getInternalInstance()?.requestImmediateDataFlush()
     }
-
 
     override fun onActivityStarted(activity: Activity?) {
         super.onActivityStarted(activity)
-        getInternalInstance()!!.openSession(activity)
+        getInternalInstance()?.openSession(activity)
     }
 
     override fun onActivityStopped(activity: Activity?) {
         super.onActivityStopped(activity)
-        getInternalInstance()!!.closeSession(activity)
+        getInternalInstance()?.closeSession(activity)
     }
 
     override fun onActivityResumed(activity: Activity?) {
