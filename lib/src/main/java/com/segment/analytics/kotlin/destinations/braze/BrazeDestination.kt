@@ -13,6 +13,7 @@ import com.braze.Braze
 import com.braze.BrazeUser
 import com.braze.models.outgoing.BrazeProperties
 import com.braze.support.isNullOrBlank
+import com.braze.support.parseDate
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
 import com.segment.analytics.kotlin.android.plugins.AndroidLifecycle
 import com.segment.analytics.kotlin.core.*
@@ -24,6 +25,7 @@ import com.segment.analytics.kotlin.core.utilities.getDouble
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -109,10 +111,10 @@ class BrazeDestination(
                 if (campaignProps != null && currentUser != null) {
                     currentUser.setAttributionData(
                         AttributionData(
-                            campaignProps["source"].toString(),
-                            campaignProps["name"].toString(),
-                            campaignProps["ad_group"].toString(),
-                            campaignProps["ad_creative"].toString()
+                            campaignProps.getString("source")?: "",
+                            campaignProps.getString("name")?: "",
+                            campaignProps.getString("ad_group")?: "",
+                            campaignProps.getString("ad_creative")?: ""
                         )
                     )
                 }
@@ -139,7 +141,7 @@ class BrazeDestination(
                             product.jsonObject.getString("id"),
                             currencyCode,
                             BigDecimal.valueOf(
-                                product.jsonObject.getString("price")?.toDouble()!!
+                                product.jsonObject.getDouble("price")?: 0.0
                             ),
                             properties
                         )
@@ -178,7 +180,7 @@ class BrazeDestination(
 
         val traits: Traits = payload.traits
 
-        val name: String = traits["name"].toString()
+        val name: String = traits.getString("name")?: ""
 
         val currentUser: BrazeUser? = getInternalInstance()?.currentUser
         if (currentUser == null) {
@@ -197,22 +199,22 @@ class BrazeDestination(
         )
 
 
-        val email: String = traits["email"].toString()
+        val email: String = traits.getString("email")?: ""
         if (!isNullOrBlank(email)) {
             currentUser.setEmail(email)
         }
 
-        val firstName: String = traits["firstName"].toString()
+        val firstName: String = traits.getString("firstName")?: ""
         if (!isNullOrBlank(firstName)) {
             currentUser.setFirstName(firstName)
         }
 
-        val lastName: String = traits["lastName"].toString()
+        val lastName: String = traits.getString("lastName")?: ""
        if (!isNullOrBlank(lastName)) {
             currentUser.setLastName(lastName)
         }
 
-        val gender: String = traits["gender"].toString()
+        val gender: String = traits.getString("gender")?: ""
         if (!isNullOrBlank(gender)) {
             if (MALE_TOKENS.contains(
                     gender.uppercase(
@@ -231,44 +233,47 @@ class BrazeDestination(
             }
         }
 
-        val phone: String = traits["phone"].toString()
+        val phone: String = traits.getString("phone")?: ""
         if (!isNullOrBlank(phone)) {
             currentUser.setPhoneNumber(phone)
         }
 
 
-        val address: String = traits["address"].toString()
-        val city: String = traits["city"].toString()
+        val address: String = traits.getString("address")?: ""
+        val city: String = traits.getString("city")?: ""
         if (!isNullOrBlank(city)) {
             currentUser.setHomeCity(city)
         }
-        val country: String = traits["country"].toString()
+        val country: String = traits.getString("country")?: ""
         if (!isNullOrBlank(country)) {
             currentUser.setCountry(country)
         }
 
-        for (key: Char in traits["keySet"].toString()) {
-            val keyString: String = key.toString()
+        for (key: Char in traits.getString("keySet")?: "") {
+            val keyString = key.toString()
             if (RESERVED_KEYS.contains( keyString )) {
                 analytics.log(String.format("Skipping reserved key %s", keyString))
                 continue
             }
-            val value: Any? = traits[keyString]
-            if (value is Boolean) {
-                currentUser.setCustomUserAttribute(keyString, (value as Boolean?)!!)
+
+            val value = traits[keyString]?.toContent()
+
+            if (value is Boolean ) {
+                currentUser.setCustomUserAttribute(keyString, value)
             } else if (value is Int) {
-                currentUser.setCustomUserAttribute(keyString, (value as Int?)!!)
+                currentUser.setCustomUserAttribute(keyString, value)
             } else if (value is Double) {
-                currentUser.setCustomUserAttribute(keyString, (value as Double?)!!)
+                currentUser.setCustomUserAttribute(keyString, value)
             } else if (value is Float) {
-                currentUser.setCustomUserAttribute(keyString, (value as Float?)!!)
+                currentUser.setCustomUserAttribute(keyString, value)
             } else if (value is Long) {
-                currentUser.setCustomUserAttribute(keyString, (value as Long?)!!)
-            } else if (value is Date) {
-                val secondsFromEpoch = value.time / 1000L
-                currentUser.setCustomUserAttributeToSecondsFromEpoch(keyString, secondsFromEpoch)
+                currentUser.setCustomUserAttribute(keyString, value)
             } else if (value is String) {
-                currentUser.setCustomUserAttribute(keyString, (value as String?)!!)
+                try {
+                    val parseTime = Instant.parse(value)
+                    currentUser.setCustomUserAttributeToSecondsFromEpoch(keyString, parseTime.epochSecond)
+                } catch (e: Exception) {
+                }
             } else if (value is Array<*>) {
                 currentUser.setCustomAttributeArray(keyString, (value as Array<String?>?)!!)
             } else if (value is List<*>) {
@@ -332,12 +337,12 @@ class BrazeDestination(
                 timeStampCal[Calendar.DAY_OF_MONTH]
             )
 
-            val email: String = traits["email"].toString()
+            val email: String = traits.getString("email")?: ""
             if (!isNullOrBlank(email)) {
                 currentUser.setEmail(email)
             }
 
-            val projectId: String = traits["projectId"].toString()
+            val projectId: String = traits.getString("projectId")?: ""
         }
 
         return payload
