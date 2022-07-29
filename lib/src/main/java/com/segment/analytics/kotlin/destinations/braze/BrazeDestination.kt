@@ -218,33 +218,32 @@ class BrazeDestination(
             currentUser.setCountry(country)
         }
 
-        for (key: JsonElement in traits["keySet"]?.safeJsonArray!!) {
-            val keyString = key.toString()
-            if (RESERVED_KEYS.contains( keyString )) {
-                analytics.log(String.format("Skipping reserved key %s", keyString))
+        for (key: String in traits.keys) {
+            if (RESERVED_KEYS.contains( key )) {
+                analytics.log(String.format("Skipping reserved key %s", key))
                 continue
             }
 
-            val value = traits[keyString]?.toContent()
+            val value = traits[key]?.toContent()
 
             if (value is Boolean ) {
-                currentUser.setCustomUserAttribute(keyString, value)
+                currentUser.setCustomUserAttribute(key, value)
             } else if (value is Int) {
-                currentUser.setCustomUserAttribute(keyString, value)
+                currentUser.setCustomUserAttribute(key, value)
             } else if (value is Double) {
-                currentUser.setCustomUserAttribute(keyString, value)
+                currentUser.setCustomUserAttribute(key, value)
             } else if (value is Float) {
-                currentUser.setCustomUserAttribute(keyString, value)
+                currentUser.setCustomUserAttribute(key, value)
             } else if (value is Long) {
-                currentUser.setCustomUserAttribute(keyString, value)
+                currentUser.setCustomUserAttribute(key, value)
             } else if (value is String) {
                 try {
                     val parseTime = Instant.parse(value)
-                    currentUser.setCustomUserAttributeToSecondsFromEpoch(keyString, parseTime.epochSecond)
+                    currentUser.setCustomUserAttributeToSecondsFromEpoch(key, parseTime.epochSecond)
                 } catch (e: Exception) {
                 }
             } else if (value is Array<*>) {
-                currentUser.setCustomAttributeArray(keyString, (value as Array<String?>?)!!)
+                currentUser.setCustomAttributeArray(key, (value as Array<String?>?)!!)
             } else if (value is List<*>) {
                 val valueArrayList = ArrayList(value as Collection<Any>)
                 val stringValueList: MutableList<String> = ArrayList()
@@ -256,14 +255,14 @@ class BrazeDestination(
                 if (stringValueList.size > 0) {
                     val arrayValue = arrayOfNulls<String>(stringValueList.size)
                     currentUser.setCustomAttributeArray(
-                        keyString,
+                        key,
                         arrayValue
                     )
                }
             } else {
                 analytics.log(
                     String.format("Braze can't map segment value for custom Braze user "
-                            + "attribute with key %s and value %s", keyString, value
+                            + "attribute with key %s and value %s", key, value
                 ))
             }
         }
