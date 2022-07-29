@@ -63,9 +63,6 @@ dependencies {
 
 // Partner Dependencies
 dependencies {
-    repositories {
-        maven { url = uri("https://appboy.github.io/appboy-android-sdk/sdk") }
-    }
     implementation("com.appboy:android-sdk-ui:20.0.0+")
 }
 
