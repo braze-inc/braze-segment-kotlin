@@ -4,7 +4,6 @@ package com.segment.analytics.kotlin.destinations.braze
 import android.app.Activity
 import android.content.Context
 import androidx.annotation.VisibleForTesting
-import com.appboy.Appboy
 import com.appboy.IAppboy
 import com.appboy.enums.Gender
 import com.appboy.enums.Month
@@ -12,7 +11,6 @@ import com.appboy.models.outgoing.AttributionData
 import com.braze.Braze
 import com.braze.BrazeUser
 import com.braze.models.outgoing.BrazeProperties
-import com.braze.support.BrazeLogger
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
 import com.segment.analytics.kotlin.android.plugins.AndroidLifecycle
 import com.segment.analytics.kotlin.core.*
@@ -20,14 +18,13 @@ import com.segment.analytics.kotlin.core.platform.DestinationPlugin
 import com.segment.analytics.kotlin.core.platform.Plugin
 import com.segment.analytics.kotlin.core.platform.plugins.logger.log
 import com.segment.analytics.kotlin.core.utilities.*
-import com.segment.analytics.kotlin.core.utilities.getDouble
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import java.math.BigDecimal
 import java.time.Instant
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 
 @Serializable
@@ -236,29 +233,26 @@ class BrazeDestination(
                 currentUser.setCustomUserAttribute(key, value)
             } else if (value is Long) {
                 currentUser.setCustomUserAttribute(key, value)
+            } else if (value is Date) {
+                    val dateTime: Date = value
+                    currentUser.setCustomUserAttributeToSecondsFromEpoch(key, dateTime.time)
             } else if (value is String) {
-                try {
-                    val parseTime = Instant.parse(value)
-                    currentUser.setCustomUserAttributeToSecondsFromEpoch(key, parseTime.epochSecond)
-                } catch (e: Exception) {
-                }
-            } else if (value is Array<*>) {
-                currentUser.setCustomAttributeArray(key, (value as Array<String?>?)!!)
-            } else if (value is List<*>) {
-                val valueArrayList = ArrayList(value as Collection<Any>)
-                val stringValueList: MutableList<String> = ArrayList()
-                for (objectValue: Any? in valueArrayList) {
-                    if (objectValue is String) {
-                        stringValueList.add(objectValue)
+                currentUser.setCustomUserAttribute(key, value)
+            } else if (value is JsonArray) {
+                val stringValueList = mutableListOf<String>()
+                for (objectValue in value) {
+                    val content = objectValue.toContent()
+                    if (content is String) {
+                        stringValueList.add(content)
                     }
                 }
                 if (stringValueList.size > 0) {
-                    val arrayValue = arrayOfNulls<String>(stringValueList.size)
+                    val valueArray: Array<String?> = stringValueList.toTypedArray()
                     currentUser.setCustomAttributeArray(
                         key,
-                        arrayValue
+                        valueArray
                     )
-               }
+                }
             } else {
                 analytics.log(
                     String.format("Braze can't map segment value for custom Braze user "
