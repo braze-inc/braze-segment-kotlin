@@ -235,16 +235,15 @@ class BrazeDestination(
                 currentUser.setCustomUserAttribute(key, value)
             } else if (value is String) {
                 try {
-                    val dateTime: Date = value
+                    val dateTime = Date(value)
                     currentUser.setCustomUserAttributeToSecondsFromEpoch(key, dateTime.time)
                 }
                 catch (_ : Exception) {
                     currentUser.setCustomUserAttribute(key, value)
                 }
-            } else if (value is JsonArray) {
+            } else if (value is List<*>) {
                 val stringValueList = mutableListOf<String>()
-                for (objectValue in value) {
-                    val content = objectValue.toContent()
+                for (content in value) {
                     if (content is String) {
                         stringValueList.add(content)
                     }
@@ -255,6 +254,10 @@ class BrazeDestination(
                         key,
                         valueArray
                     )
+                }
+            } else if (value is Map<*, *>) {
+                value.forEach { (k, v) ->
+                    currentUser.setCustomUserAttribute(k.toString(), v.toString());
                 }
             } else {
                 analytics.log(
