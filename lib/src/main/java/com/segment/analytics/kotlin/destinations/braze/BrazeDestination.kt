@@ -233,11 +233,14 @@ class BrazeDestination(
                 currentUser.setCustomUserAttribute(key, value)
             } else if (value is Long) {
                 currentUser.setCustomUserAttribute(key, value)
-            } else if (value is Date) {
+            } else if (value is String) {
+                try {
                     val dateTime: Date = value
                     currentUser.setCustomUserAttributeToSecondsFromEpoch(key, dateTime.time)
-            } else if (value is String) {
-                currentUser.setCustomUserAttribute(key, value)
+                }
+                catch (_ : Exception) {
+                    currentUser.setCustomUserAttribute(key, value)
+                }
             } else if (value is JsonArray) {
                 val stringValueList = mutableListOf<String>()
                 for (objectValue in value) {
