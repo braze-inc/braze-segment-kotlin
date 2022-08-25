@@ -11,10 +11,5 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         logLevel = Log.VERBOSE
         setContentView(R.layout.activity_main)
-
-         val LogTag = MainActivity::class.java.simpleName
-
     }
-
-    MainApplication.applicationContext()
 }

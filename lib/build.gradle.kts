@@ -63,7 +63,7 @@ dependencies {
 
 // Partner Dependencies
 dependencies {
-    implementation("com.appboy:android-sdk-ui:20.0.0+")
+    implementation("com.appboy:android-sdk-ui:20.0.0")
 }
 
 // Test Dependencies
