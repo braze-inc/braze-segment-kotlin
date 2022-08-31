@@ -1,4 +1,4 @@
-# Analytics-Kotlin Braze
+# Analytics-Kotlin-Braze
 
 Add Braze device mode support to your applications via this plugin for
     [Analytics-Kotlin](https://github.com/segmentio/analytics-kotlin)
@@ -7,7 +7,7 @@ Add Braze device mode support to your applications via this plugin for
 
 To install the Segment-Braze integration, simply add this line to your analytics-kotlin gradle file:
     samples/kotlin-android-app-destinations/build.gradle
-    Replacd <latest_version> with built number. For example 1.0.0.
+    Replace <latest_version> with built number. For example 1.0.0.
 
 ```
 implementation 'com.segment.analytics.kotlin.destinations:braze:<latest_version>'
@@ -58,7 +58,7 @@ Interested in integrating your service with us? Check out our [Partners page](ht
 ```
 MIT License
 
-Copyright (c) 2021 Segment
+Copyright (c) 2022 Segment
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
