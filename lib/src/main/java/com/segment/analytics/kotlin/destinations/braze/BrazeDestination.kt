@@ -10,7 +10,6 @@ import com.appboy.enums.Month
 import com.appboy.models.outgoing.AttributionData
 import com.braze.Braze
 import com.braze.BrazeUser
-import com.braze.enums.BrazeSdkMetadata
 import com.braze.models.outgoing.BrazeProperties
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
 import com.segment.analytics.kotlin.android.plugins.AndroidLifecycle
@@ -40,10 +39,6 @@ data class BrazeSettings(
 class BrazeDestination(
     private val context: Context,
 ) : DestinationPlugin(), AndroidLifecycle {
-
-    init {
-        Braze.addSdkMetadata(context, EnumSet.of(BrazeSdkMetadata.SEGMENT))
-    }
 
     private var settings: BrazeSettings? = null
 
