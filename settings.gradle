@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url "https://appboy.github.io/appboy-android-sdk/sdk" }
+    }
+}
+rootProject.name = "BrazeSegmentKotlin"
+include ':sample-app'
+include ':braze-segment-kotlin'

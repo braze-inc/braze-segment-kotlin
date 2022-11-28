@@ -6,25 +6,28 @@ version = getVersionName()
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
-    id("org.jetbrains.kotlin.jvm") version "1.6.0"
+    id("org.jetbrains.kotlin.jvm")
 
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
-    id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
-
+    id("io.github.gradle-nexus.publish-plugin")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 buildscript {
     repositories {
-        // Use JCenter for resolving dependencies.
         mavenCentral()
         google()
         gradlePluginPortal()
     }
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.0")
-        classpath("org.jetbrains.kotlin:kotlin-serialization:1.6.0")
-        classpath("com.android.tools.build:gradle:7.2.0")
+        val KOTLIN_VERSION: String by project
+        val GRADLE_VERSION: String by project
+        val DETEKT_VERSION: String by project
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$KOTLIN_VERSION")
+        classpath("org.jetbrains.kotlin:kotlin-serialization:$KOTLIN_VERSION")
+        classpath("com.android.tools.build:gradle:$GRADLE_VERSION")
+        classpath("io.gitlab.arturbosch.detekt:detekt-gradle-plugin:$DETEKT_VERSION")
     }
 }
 

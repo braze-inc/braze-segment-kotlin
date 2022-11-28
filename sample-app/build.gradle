@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.segment.analytics.kotlin.brazesample.testapp'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.segment.analytics.kotlin.destinations.braze"
+        minSdk 16
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+        multiDexEnabled = true
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    implementation project(path: ':braze-segment-kotlin')
+    implementation "com.appboy:android-sdk-base:$BRAZE_SDK_VERSION"
+    implementation "com.segment.analytics.kotlin:core:$SEGMENT_SDK_VERSION"
+    implementation "com.segment.analytics.kotlin:android:$SEGMENT_SDK_VERSION"
+    implementation "androidx.core:core-ktx:$ANDROIDX_CORE_KTX_VERSION"
+    implementation "androidx.appcompat:appcompat:$APPCOMPAT_VERSION"
+    implementation "com.google.android.material:material:$MATERIAL_VERSION"
+    implementation "androidx.constraintlayout:constraintlayout:$CONSTRAINT_LAYOUT_VERSION"
+    implementation "androidx.navigation:navigation-fragment-ktx:$ANDROIDX_NAVIGATION_VERSION"
+    implementation "androidx.navigation:navigation-ui-ktx:$ANDROIDX_NAVIGATION_VERSION"
+    implementation "androidx.lifecycle:lifecycle-viewmodel:$ANDROIDX_LIFECYCLE_VERSION"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$ANDROIDX_LIFECYCLE_VERSION"
+    testImplementation "junit:junit:$JUNIT_VERSION"
+    androidTestImplementation "androidx.test.ext:junit:$ANDROIDX_JUNIT_VERSION"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$ANDROIDX_ESPRESSO_VERSION"
+}

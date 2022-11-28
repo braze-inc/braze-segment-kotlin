@@ -1,10 +1,11 @@
-# Ignore Gradle project-specific cache directory
+*.iml
 .gradle
-
-# Ignore Gradle build output directory
-build
-
+/local.properties
 .idea
-
-lib/build
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
 local.properties
+/support/repo/
