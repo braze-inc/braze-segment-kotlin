@@ -5,9 +5,8 @@ Add Braze device mode support to your applications via this plugin for
 
 ## Adding the dependency
 
-To install the Segment-Braze integration, simply add this line to your analytics-kotlin gradle file:
-samples/kotlin-android-app-destinations/build.gradle
-Replace <latest_version> with built number. For example 1.0.0.
+To install the Segment-Braze integration, simply add this line to your app's build.gradle file, replacing
+`<latest_version>` with the latest version number.
 
 ```
 implementation 'com.braze:braze-segment-kotlin:<latest_version>'
@@ -19,10 +18,18 @@ Or the following for Kotlin DSL
 implementation("com.braze:braze-segment-kotlin:<latest_version>")
 ```
 
+Also add the following lines to the build.gradle file
+
+```
+repositories {
+  maven { url "https://appboy.github.io/appboy-android-sdk/sdk" }
+}  
+```  
+
 ## Using the Plugin in your App
 
 Open the file where you setup and configure the Analytics-Kotlin library
-sample-app/src/main/java/com/segment/analytics/kotlin/brazesample/testapp/MainApplication.kt
+which will usually be MainApplication.kt
 Add this plugin to the list of imports.
 
 ```
