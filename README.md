@@ -18,14 +18,6 @@ Or the following for Kotlin DSL
 implementation("com.braze:braze-segment-kotlin:<latest_version>")
 ```
 
-Also add the following lines to the build.gradle file
-
-```
-repositories {
-  maven { url "https://appboy.github.io/appboy-android-sdk/sdk" }
-}  
-```  
-
 ## Using the Plugin in your App
 
 Open the file where you setup and configure the Analytics-Kotlin library

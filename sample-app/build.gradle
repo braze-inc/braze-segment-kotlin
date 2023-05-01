@@ -38,7 +38,7 @@ android {
 
 dependencies {
     implementation project(path: ':braze-segment-kotlin')
-    implementation "com.appboy:android-sdk-base:$BRAZE_SDK_VERSION"
+    implementation "com.braze:android-sdk-base:$BRAZE_SDK_VERSION"
     implementation "com.segment.analytics.kotlin:core:$SEGMENT_SDK_VERSION"
     implementation "com.segment.analytics.kotlin:android:$SEGMENT_SDK_VERSION"
     implementation "androidx.core:core-ktx:$ANDROIDX_CORE_KTX_VERSION"

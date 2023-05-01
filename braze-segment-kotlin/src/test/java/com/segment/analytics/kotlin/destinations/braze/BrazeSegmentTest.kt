@@ -3,9 +3,9 @@ package com.segment.analytics.kotlin.destinations.braze
 import android.app.Activity
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.appboy.enums.Gender
-import com.appboy.enums.Month
-import com.appboy.models.outgoing.AttributionData
+import com.braze.enums.Gender
+import com.braze.enums.Month
+import com.braze.models.outgoing.AttributionData
 import com.braze.Braze
 import com.braze.BrazeUser
 import com.braze.models.outgoing.BrazeProperties
@@ -15,6 +15,7 @@ import com.segment.analytics.kotlin.core.platform.Plugin
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -120,7 +121,13 @@ class BrazeSegmentTest {
     @Test
     fun whenCalledWithFullTraits_identify_brazeUserSetFunctionsAreCalled() {
         val userId = "bob"
-        val brazeUserMock: BrazeUser = mock()
+
+        val jsonCapture = argumentCaptor<JSONObject>()
+        val arrayCapture = argumentCaptor<Array<String?>>()
+        val brazeUserMock: BrazeUser = mock() {
+            on { setCustomUserAttribute(any(), jsonCapture.capture(), any()) }.thenReturn(true)
+            on { setCustomAttributeArray(any(), arrayCapture.capture()) }.thenReturn(true)
+        }
         val brazeMock = mock<Braze>() {
             on { currentUser } doReturn brazeUserMock
         }
@@ -146,7 +153,22 @@ class BrazeSegmentTest {
         verify(brazeUserMock, times(0)).setCustomUserAttribute(any(), any() as Float)
         verify(brazeUserMock, times(1)).setCustomUserAttribute(CUSTOM_DOUBLE_KEY, CUSTOM_DOUBLE)
         verify(brazeUserMock, times(1)).setCustomUserAttribute(CUSTOM_LONG_KEY, CUSTOM_LONG)
+        verify(brazeUserMock, times(1)).setCustomUserAttribute(any(), any(), any())
+        verify(brazeUserMock, times(1)).setCustomAttributeArray(any(), any())
         verifyNoMoreInteractions(brazeUserMock)
+
+        assertEquals(1, jsonCapture.allValues.size)
+        val capturedValue = jsonCapture.firstValue
+        assertEquals(2, capturedValue.length())
+        assertEquals(JSON_LOCATION_VALUE, capturedValue.getString(JSON_LOCATION_KEY))
+        assertEquals(JSON_DEPT_VALUE, capturedValue.getString(JSON_DEPT_KEY))
+
+        assertEquals(1, arrayCapture.allValues.size)
+        val capturedArray = arrayCapture.firstValue
+        assertEquals(3, capturedArray.size)
+        assertTrue(capturedArray.any { it.equals("one") })
+        assertTrue(capturedArray.any { it.equals("2") })
+        assertTrue(capturedArray.any { it.equals("true") })
     }
 
     @Test
@@ -380,6 +402,22 @@ class BrazeSegmentTest {
                 "country" to JsonPrimitive(COUNTRY),
             )
         )
+
+        val nestedObject = JsonObject(
+            mapOf(
+                JSON_DEPT_KEY to JsonPrimitive(JSON_DEPT_VALUE),
+                JSON_LOCATION_KEY to JsonPrimitive(JSON_LOCATION_VALUE)
+            )
+        )
+
+        val jsonArray = JsonArray(
+            listOf(
+                JsonPrimitive("one"),
+                JsonPrimitive(2),
+                JsonPrimitive(true)
+            )
+        )
+
         return JsonObject(
             content = mapOf(
                 "firstName" to JsonPrimitive(FIRST_NAME),
@@ -394,7 +432,9 @@ class BrazeSegmentTest {
                 CUSTOM_DOUBLE_KEY to JsonPrimitive(CUSTOM_DOUBLE),
                 CUSTOM_FLOAT_KEY to JsonPrimitive(CUSTOM_FLOAT),
                 CUSTOM_BOOLEAN_KEY to JsonPrimitive(CUSTOM_BOOLEAN),
-                CUSTOM_LONG_KEY to JsonPrimitive(CUSTOM_LONG)
+                CUSTOM_LONG_KEY to JsonPrimitive(CUSTOM_LONG),
+                "jobInfo" to nestedObject,
+                "jsonArray" to jsonArray
             )
         )
     }
@@ -436,6 +476,11 @@ class BrazeSegmentTest {
 
         private const val CUSTOM_LONG_KEY = "mylong"
         private const val CUSTOM_LONG = 9000000000000000000L
+
+        private const val JSON_DEPT_KEY = "department"
+        private const val JSON_DEPT_VALUE = "G9D"
+        private const val JSON_LOCATION_KEY = "location"
+        private const val JSON_LOCATION_VALUE = "030-2 E208"
 
         private const val GARBAGE_DATE = "2010-03-16"
 

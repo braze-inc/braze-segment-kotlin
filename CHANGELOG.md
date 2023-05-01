@@ -1,6 +1,19 @@
+## 1.3.0
+
+#### Breaking
+* If the JsonObject sent through Segment's identify() has values that are JsonObjects, those values will be sent to Braze as a Nested Custom Attribute.
+* If the JsonObject sent through Segment's identify() has values that are JsonArrays, all values will be converted to Strings and sent to Braze.
+
+##### Changed
+* Updated to use Braze Android SDK 25.0.0 and analytics-kotlin 1.10.5.
+
 ## 1.2.0
-* Update version to not conflict with older versions
+
+##### Changed
+* Update version to not conflict with older versions.
 
 ## 1.0.0
+
+##### Changed
 * (Supports analytics-kotlin 1.6.2 and Braze Android SDK 23.2.1)
 * Initial Release

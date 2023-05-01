@@ -3,14 +3,14 @@ package com.segment.analytics.kotlin.destinations.braze
 import android.app.Activity
 import android.content.Context
 import androidx.annotation.VisibleForTesting
-import com.appboy.enums.Gender
-import com.appboy.enums.Month
-import com.appboy.enums.SdkFlavor
-import com.appboy.models.outgoing.AttributionData
 import com.braze.Braze
 import com.braze.BrazeUser
 import com.braze.configuration.BrazeConfig
 import com.braze.enums.BrazeSdkMetadata
+import com.braze.enums.Gender
+import com.braze.enums.Month
+import com.braze.enums.SdkFlavor
+import com.braze.models.outgoing.AttributionData
 import com.braze.models.outgoing.BrazeProperties
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
 import com.segment.analytics.kotlin.android.plugins.AndroidLifecycle
@@ -19,7 +19,6 @@ import com.segment.analytics.kotlin.core.platform.DestinationPlugin
 import com.segment.analytics.kotlin.core.platform.Plugin
 import com.segment.analytics.kotlin.core.platform.plugins.logger.log
 import com.segment.analytics.kotlin.core.utilities.*
-import com.segment.analytics.kotlin.destinations.braze.BrazeDestination.Companion.toBrazeProperties
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -278,9 +277,7 @@ class BrazeDestination(
             } else if (value is List<*>) {
                 val stringValueList = mutableListOf<String>()
                 for (content in value) {
-                    if (content is String) {
-                        stringValueList.add(content)
-                    }
+                    stringValueList.add(content.toString())
                 }
                 if (stringValueList.size > 0) {
                     val valueArray: Array<String?> = stringValueList.toTypedArray()
@@ -290,8 +287,12 @@ class BrazeDestination(
                     )
                 }
             } else if (value is Map<*, *>) {
-                value.forEach { (k, v) ->
-                    currentUser.setCustomUserAttribute(k.toString(), v.toString())
+                try {
+                    currentUser.setCustomUserAttribute(key, JSONObject(value))
+                } catch (e: Exception) {
+                    analytics.log(
+                        "Error converting to JSONObject for key $key: ${e.message}"
+                    )
                 }
             } else {
                 analytics.log(
