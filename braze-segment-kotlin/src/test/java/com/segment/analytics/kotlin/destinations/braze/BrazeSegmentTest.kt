@@ -3,11 +3,12 @@ package com.segment.analytics.kotlin.destinations.braze
 import android.app.Activity
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.braze.enums.Gender
-import com.braze.enums.Month
-import com.braze.models.outgoing.AttributionData
 import com.braze.Braze
 import com.braze.BrazeUser
+import com.braze.enums.Gender
+import com.braze.enums.Month
+import com.braze.events.IValueCallback
+import com.braze.models.outgoing.AttributionData
 import com.braze.models.outgoing.BrazeProperties
 import com.braze.support.getOptionalString
 import com.segment.analytics.kotlin.core.*
@@ -130,6 +131,9 @@ class BrazeSegmentTest {
         }
         val brazeMock = mock<Braze>() {
             on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
         }
         brazeDestination.brazeTestingMock = brazeMock
 
@@ -177,6 +181,9 @@ class BrazeSegmentTest {
         val brazeUserMock: BrazeUser = mock()
         val brazeMock = mock<Braze>() {
             on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
         }
         brazeDestination.brazeTestingMock = brazeMock
 
@@ -309,11 +316,47 @@ class BrazeSegmentTest {
     }
 
     @Test
-    fun whenCalledWithExtraProperties_track_callsLogPurchaseWithProperies() {
+    fun whenCalledWithRevenueButSettingIsFalse_track_DoesNotCallLogPurchaseWithProperties() {
+        val brazePropertiesCaptor = argumentCaptor<BrazeProperties>()
+        val brazeMock = mock<Braze> {
+            on { logPurchase(any(), any(), any(), brazePropertiesCaptor.capture()) }.then { }
+            on { logCustomEvent(any(), brazePropertiesCaptor.capture()) }.then { }
+        }
+        val settings = getMockSettings(logPurchaseWhenRevenuePresent = false)
+        brazeDestination.update(settings, Plugin.UpdateType.Initial)
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val trackEvent = TrackEvent(
+            JsonObject(
+                mapOf(
+                    "revenue" to JsonPrimitive(5.99),
+                    "currency" to JsonPrimitive("CAD"),
+                    "color" to JsonPrimitive("red")
+
+                )
+            ),
+            "Random Event Name"
+        )
+        val payload = brazeDestination.track(trackEvent)
+        assertEquals(payload, trackEvent)
+        verify(brazeMock, times(0)).logPurchase(any(), any(), any(), any() as BrazeProperties?)
+
+        verify(brazeMock, times(1)).logCustomEvent(eq("Random Event Name"), any() as BrazeProperties?)
+
+        assertEquals(1, brazePropertiesCaptor.allValues.size)
+        val brazeProperties = brazePropertiesCaptor.firstValue
+        assertEquals(1, brazeProperties.size)
+        assertEquals("red", brazeProperties["color"])
+    }
+
+    @Test
+    fun whenCalledWithRevenueButSettingIsFalseButNameIsOrderCompleted_track_DoesCallLogPurchaseWithProperties() {
         val brazePropertiesCaptor = argumentCaptor<BrazeProperties>()
         val brazeMock = mock<Braze> {
             on { logPurchase(any(), any(), any(), brazePropertiesCaptor.capture()) }.then { }
         }
+        val settings = getMockSettings(logPurchaseWhenRevenuePresent = false)
+        brazeDestination.update(settings, Plugin.UpdateType.Initial)
         brazeDestination.brazeTestingMock = brazeMock
 
         val trackEvent = TrackEvent(
@@ -338,6 +381,37 @@ class BrazeSegmentTest {
     }
 
     @Test
+    fun whenCalledWithRevenueAndSettingIsTrueButNameIsNotOrderCompleted_track_DoesCallLogPurchaseWithProperties() {
+        val brazePropertiesCaptor = argumentCaptor<BrazeProperties>()
+        val brazeMock = mock<Braze> {
+            on { logPurchase(any(), any(), any(), brazePropertiesCaptor.capture()) }.then { }
+        }
+        val settings = getMockSettings(logPurchaseWhenRevenuePresent = true)
+        brazeDestination.update(settings, Plugin.UpdateType.Initial)
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val trackEvent = TrackEvent(
+            JsonObject(
+                mapOf(
+                    "revenue" to JsonPrimitive(5.99),
+                    "currency" to JsonPrimitive("CAD"),
+                    "color" to JsonPrimitive("red")
+
+                )
+            ),
+            "Random Event Name"
+        )
+        val payload = brazeDestination.track(trackEvent)
+        assertEquals(payload, trackEvent)
+        verify(brazeMock, times(1)).logPurchase(eq("Random Event Name"), any(), any(), any() as BrazeProperties?)
+
+        assertEquals(1, brazePropertiesCaptor.allValues.size)
+        val brazeProperties = brazePropertiesCaptor.firstValue
+        assertEquals(1, brazeProperties.size)
+        assertEquals("red", brazeProperties["color"])
+    }
+
+    @Test
     fun whenEventNameIsInstallAttributed_track_callsSetAttributionData() {
         val attributionDataCaptor = argumentCaptor<AttributionData>()
 
@@ -346,6 +420,9 @@ class BrazeSegmentTest {
         }
         val brazeMock = mock<Braze>() {
             on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
         }
         brazeDestination.brazeTestingMock = brazeMock
 
@@ -376,16 +453,82 @@ class BrazeSegmentTest {
         verifyNoMoreInteractions(brazeUserMock)
     }
 
+    @Test
+    fun whenCalledWithSubscriptionData_track_callsAddToSubscriptionGroup() {
+        val groupIdCaptor = argumentCaptor<String>()
+        val brazeUserMock: BrazeUser = mock() {
+            on { addToSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
+        }
+
+        val brazeMock = mock<Braze>() {
+            on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
+        }
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "myUser",
+            getMockSubscriptionTraits(true)
+        )
+        val payload = brazeDestination.identify(identifyEvent)
+        assertEquals(payload, identifyEvent)
+        verify(brazeUserMock, times(1)).addToSubscriptionGroup(any())
+        assertEquals("123-456-789", groupIdCaptor.firstValue)
+
+        // Verify the other data is handled
+        verify(brazeUserMock, times(1)).setFirstName(FIRST_NAME)
+        verify(brazeUserMock, times(1)).setLastName(LAST_NAME)
+
+        // Verify that nothing else was called (subscription data didn't turn into the custom attributes)
+        verifyNoMoreInteractions(brazeUserMock)
+    }
+
+    @Test
+    fun whenCalledWithUnSubscriptionData_identify_callsRemoveFromSubscriptionGroup() {
+        val groupIdCaptor = argumentCaptor<String>()
+        val brazeUserMock: BrazeUser = mock() {
+            on { removeFromSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
+        }
+
+        val brazeMock = mock<Braze>() {
+            on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
+        }
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "myUser",
+            getMockSubscriptionTraits(false)
+        )
+        val payload = brazeDestination.identify(identifyEvent)
+        assertEquals(payload, identifyEvent)
+        verify(brazeUserMock, times(1)).removeFromSubscriptionGroup(any())
+        assertEquals("123-456-789", groupIdCaptor.firstValue)
+
+        // Verify the other data is handled
+        verify(brazeUserMock, times(1)).setFirstName(FIRST_NAME)
+        verify(brazeUserMock, times(1)).setLastName(LAST_NAME)
+
+        // Verify that nothing else was called (subscription data didn't turn into the custom attributes)
+        verifyNoMoreInteractions(brazeUserMock)
+    }
+
     private fun getMockSettings(
         apiKey: String = API_KEY,
         customEndpoint: String = CUSTOM_ENDPOINT,
-        autoInAppRegistration: Boolean = true
+        autoInAppRegistration: Boolean = true,
+        logPurchaseWhenRevenuePresent: Boolean = true
     ): Settings {
         val brazeJsonSettings = JsonObject(
             content = mapOf(
                 "apiKey" to JsonPrimitive(apiKey),
                 "customEndpoint" to JsonPrimitive(customEndpoint),
-                "automatic_in_app_message_registration_enabled" to JsonPrimitive(autoInAppRegistration)
+                "automatic_in_app_message_registration_enabled" to JsonPrimitive(autoInAppRegistration),
+                "logPurchaseWhenRevenuePresent" to JsonPrimitive(logPurchaseWhenRevenuePresent)
             )
         )
         val integrations = JsonObject(mapOf("Appboy" to brazeJsonSettings))
@@ -436,6 +579,36 @@ class BrazeSegmentTest {
                 "jobInfo" to nestedObject,
                 "jsonArray" to jsonArray
             )
+        )
+    }
+
+    private fun getMockSubscriptionTraits(subscription: Boolean = true): Traits {
+        val groupId = "123-456-789"
+        val groupStatus = if (subscription) {
+            "subscribed"
+        } else {
+            "unsubscribed"
+        }
+
+        val subscriptionData = JsonArray(
+            listOf(
+                JsonObject(
+                    mapOf(
+                        "subscription_group_id" to JsonPrimitive(groupId),
+                        "subscription_state_id" to JsonPrimitive(groupStatus)
+                    )
+                )
+            )
+        )
+
+        val contentMap = mutableMapOf(
+            "firstName" to JsonPrimitive(FIRST_NAME),
+            "lastName" to JsonPrimitive(LAST_NAME),
+            "braze_subscription_groups" to subscriptionData
+        )
+
+        return JsonObject(
+            content = contentMap
         )
     }
 

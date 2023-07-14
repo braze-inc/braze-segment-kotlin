@@ -64,7 +64,8 @@ class BrazeAndroidTest {
             content = mapOf(
                 "apiKey" to JsonPrimitive(apiKey),
                 "customEndpoint" to JsonPrimitive(customEndpoint),
-                "automatic_in_app_message_registration_enabled" to JsonPrimitive(autoInAppRegistration)
+                "automatic_in_app_message_registration_enabled" to JsonPrimitive(autoInAppRegistration),
+                "logPurchaseWhenRevenuePresent" to JsonPrimitive(false)
             )
         )
         val integrations = JsonObject(mapOf("Appboy" to brazeJsonSettings))

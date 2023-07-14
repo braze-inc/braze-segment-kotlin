@@ -1,3 +1,9 @@
+## 1.4.0
+
+##### Added
+* Added support to parse `braze_subscription_groups` in the Identity traits to subscribe and unsubscribe from Braze subscription groups.
+* Updated to use Braze Android SDK 26.1.0 and analytics-kotlin 1.13.0.
+
 ## 1.3.0
 
 #### Breaking

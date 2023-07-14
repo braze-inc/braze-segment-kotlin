@@ -9,3 +9,6 @@
 .cxx
 local.properties
 /support/repo/
+
+# Sonatype signing
+secure_do_not_distribute_sonatype.properties

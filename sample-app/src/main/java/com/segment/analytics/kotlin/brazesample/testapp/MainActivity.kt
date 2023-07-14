@@ -4,9 +4,12 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import com.braze.enums.BrazeDateFormat
 import com.braze.support.BrazeLogger
+import com.braze.support.formatDate
 import com.segment.analytics.kotlin.brazesample.testapp.databinding.ActivityMainBinding
 import kotlinx.serialization.json.*
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -21,7 +24,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.identifyButton).setOnClickListener {
-            MainApplication.analytics.identify("bob", buildJsonObject {
+            val userId = "segmentKotlin-${Date().formatDate(BrazeDateFormat.SHORT)}"
+            MainApplication.analytics.identify(userId, buildJsonObject {
                 put("username", "BobBraze")
                 put("email", "bob@test.com")
                 put("plan", "premium")

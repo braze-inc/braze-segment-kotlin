@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import com.braze.Braze
-import com.braze.BrazeUser
 import com.braze.configuration.BrazeConfig
 import com.braze.enums.BrazeSdkMetadata
 import com.braze.enums.Gender
@@ -34,7 +33,8 @@ data class BrazeSettings(
     val apiKey: String,
     val customEndpoint: String,
     @SerialName("automatic_in_app_message_registration_enabled")
-    val automaticInAppMessageRegistrationEnabled: Boolean
+    val automaticInAppMessageRegistrationEnabled: Boolean,
+    val logPurchaseWhenRevenuePresent: Boolean
 )
 
 class BrazeDestination(
@@ -51,6 +51,7 @@ class BrazeDestination(
         get() = brazeTestingMock ?: Braze.getInstance(context)
 
     private var isAutomaticInAppMessageRegistrationEnabled: Boolean = false
+    private var shouldLogPurchaseWhenRevenuePresent: Boolean = true
 
     override fun update(settings: Settings, type: Plugin.UpdateType) {
         super.update(settings, type)
@@ -74,6 +75,7 @@ class BrazeDestination(
                 }
                 Braze.configure(context, builder.build())
                 isAutomaticInAppMessageRegistrationEnabled = brazeSettings.automaticInAppMessageRegistrationEnabled
+                shouldLogPurchaseWhenRevenuePresent = brazeSettings.logPurchaseWhenRevenuePresent
 
                 analytics.log("Braze Destination loaded")
             }
@@ -92,16 +94,17 @@ class BrazeDestination(
             eventName == INSTALL_EVENT_NAME -> {
                 try {
                     val campaignProps: JsonObject? = properties["campaign"]?.safeJsonObject
-                    val currentUser = braze.currentUser
-                    if (campaignProps != null && currentUser != null) {
-                        currentUser.setAttributionData(
-                            AttributionData(
-                                campaignProps.getString("source").orEmpty(),
-                                campaignProps.getString("name").orEmpty(),
-                                campaignProps.getString("ad_group").orEmpty(),
-                                campaignProps.getString("ad_creative").orEmpty()
+                    braze.getCurrentUser { currentUser ->
+                        if (campaignProps != null) {
+                            currentUser.setAttributionData(
+                                AttributionData(
+                                    campaignProps.getString("source").orEmpty(),
+                                    campaignProps.getString("name").orEmpty(),
+                                    campaignProps.getString("ad_group").orEmpty(),
+                                    campaignProps.getString("ad_creative").orEmpty()
+                                )
                             )
-                        )
+                        }
                     }
                     return payload
                 } catch (exception: Exception) {
@@ -111,7 +114,7 @@ class BrazeDestination(
                     )
                 }
             }
-            revenue != 0.0 || eventName == PURCHASE_EVENT_NAME_1 || eventName == PURCHASE_EVENT_NAME_2 -> {
+            shouldLogPurchaseWhenRevenuePresent && revenue != 0.0 || eventName == PURCHASE_EVENT_NAME_1 || eventName == PURCHASE_EVENT_NAME_2 -> {
                 val currencyCode: String? =
                     if (properties.getString(CURRENCY_KEY).isNullOrBlank()) {
                         DEFAULT_CURRENCY_CODE
@@ -165,140 +168,164 @@ class BrazeDestination(
         }
 
         val traits: Traits = payload.traits
+        analytics.log("Traits in BrazeDestination::identify = ${traits.toString()}")
 
-        val currentUser: BrazeUser? = braze.currentUser
-        if (currentUser == null) {
-            analytics.log("Braze.getCurrentUser() was null, aborting identify")
-            return payload
-        }
+        braze.getCurrentUser { currentUser ->
+            if (traits.containsKey(SUBSCRIPTION_GROUP_KEY)) {
+                val subscriptions = traits[SUBSCRIPTION_GROUP_KEY]?.safeJsonArray
+                subscriptions?.forEach { subscriptionInfo ->
+                    if (subscriptionInfo != null && subscriptionInfo is JsonObject) {
+                        val groupId = subscriptionInfo.getString(SUBSCRIPTION_ID_KEY)
+                        val groupState = subscriptionInfo.getString(SUBSCRIPTION_STATE_KEY)
+                        if (!groupId.isNullOrBlank()) {
+                            when (groupState) {
+                                "subscribed" -> {
+                                    currentUser.addToSubscriptionGroup(groupId)
+                                }
 
-        val birthdayString = traits.getString("birthday").orEmpty()
-        if (birthdayString.isNotBlank()) {
-            try {
-                val birthday = Date(birthdayString)
-                val birthdayCal = Calendar.getInstance(Locale.US)
-                val month = Month.getMonth(Calendar.MONTH)
-                birthdayCal.time = birthday
-                if (month != null) {
-                    currentUser.setDateOfBirth(
-                        birthdayCal[Calendar.YEAR],
-                        month,
-                        birthdayCal[Calendar.DAY_OF_MONTH]
+                                "unsubscribed" -> {
+                                    currentUser.removeFromSubscriptionGroup(groupId)
+                                }
+
+                                else -> {
+                                    analytics.log(
+                                        "Unrecognized Braze subscription state: $groupState."
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val birthdayString = traits.getString("birthday").orEmpty()
+            if (birthdayString.isNotBlank()) {
+                try {
+                    val birthday = Date(birthdayString)
+                    val birthdayCal = Calendar.getInstance(Locale.US)
+                    val month = Month.getMonth(Calendar.MONTH)
+                    birthdayCal.time = birthday
+                    if (month != null) {
+                        currentUser.setDateOfBirth(
+                            birthdayCal[Calendar.YEAR],
+                            month,
+                            birthdayCal[Calendar.DAY_OF_MONTH]
+                        )
+                    } else {
+                        analytics.log(
+                            "Could not get birthday month from $birthdayString, skipping."
+                        )
+                    }
+                } catch (exception: Exception) {
+                    analytics.log(
+                        "birthday was in an incorrect format, skipping. "
+                                + "The exception is $exception."
                     )
+                }
+            }
+
+            val email: String = traits.getString("email").orEmpty()
+            if (email.isNotBlank()) {
+                currentUser.setEmail(email)
+            }
+
+            val firstName: String = traits.getString("firstName").orEmpty()
+            if (firstName.isNotBlank()) {
+                currentUser.setFirstName(firstName)
+            }
+
+            val lastName: String = traits.getString("lastName").orEmpty()
+            if (lastName.isNotBlank()) {
+                currentUser.setLastName(lastName)
+            }
+
+            val gender: String = traits.getString("gender").orEmpty().uppercase(Locale.getDefault())
+            if (gender.isNotBlank()) {
+                if (MALE_TOKENS.contains(
+                        gender.uppercase(
+                            Locale.getDefault()
+                        )
+                    )
+                ) {
+                    currentUser.setGender(Gender.MALE)
+                } else if (FEMALE_TOKENS.contains(
+                        gender.uppercase(
+                            Locale.getDefault()
+                        )
+                    )
+                ) {
+                    currentUser.setGender(Gender.FEMALE)
+                }
+            }
+
+            val phone: String = traits.getString("phone").orEmpty()
+            if (phone.isNotBlank()) {
+                currentUser.setPhoneNumber(phone)
+            }
+
+            val address = traits["address"]
+            if (address != null && address is JsonObject) {
+                val city: String = address.getString("city").orEmpty()
+                if (city.isNotBlank()) {
+                    currentUser.setHomeCity(city)
+                }
+                val country: String = address.getString("country").orEmpty()
+                if (country.isNotBlank()) {
+                    currentUser.setCountry(country)
+                }
+            }
+
+            for (key: String in traits.keys) {
+                if (RESERVED_KEYS.contains(key)) {
+                    analytics.log("Skipping reserved key $key")
+                    continue
+                }
+                
+                val value = traits[key]?.toContent()
+
+                if (value is Boolean) {
+                    currentUser.setCustomUserAttribute(key, value)
+                } else if (value is Int) {
+                    currentUser.setCustomUserAttribute(key, value)
+                } else if (value is Float) {
+                    currentUser.setCustomUserAttribute(key, value)
+                } else if (value is Double) {
+                    currentUser.setCustomUserAttribute(key, value)
+                } else if (value is Long) {
+                    currentUser.setCustomUserAttribute(key, value)
+                } else if (value is String) {
+                    try {
+                        val dateTime = Date(value)
+                        currentUser.setCustomUserAttributeToSecondsFromEpoch(key, dateTime.time)
+                    } catch (_: Exception) {
+                        currentUser.setCustomUserAttribute(key, value)
+                    }
+                } else if (value is List<*>) {
+                    val stringValueList = mutableListOf<String>()
+                    for (content in value) {
+                        stringValueList.add(content.toString())
+                    }
+                    if (stringValueList.size > 0) {
+                        val valueArray: Array<String?> = stringValueList.toTypedArray()
+                        currentUser.setCustomAttributeArray(
+                            key,
+                            valueArray
+                        )
+                    }
+                } else if (value is Map<*, *>) {
+                    try {
+                        currentUser.setCustomUserAttribute(key, JSONObject(value))
+                    } catch (e: Exception) {
+                        analytics.log(
+                            "Error converting to JSONObject for key $key: ${e.message}"
+                        )
+                    }
                 } else {
                     analytics.log(
-                        "Could not get birthday month from $birthdayString, skipping."
+                        "Braze can't map segment value for custom Braze user "
+                                + "attribute with key $key and value $value"
                     )
                 }
-            } catch (exception: Exception) {
-                analytics.log(
-                    "birthday was in an incorrect format, skipping. "
-                        + "The exception is $exception."
-                )
-            }
-        }
-
-        val email: String = traits.getString("email").orEmpty()
-        if (email.isNotBlank()) {
-            currentUser.setEmail(email)
-        }
-
-        val firstName: String = traits.getString("firstName").orEmpty()
-        if (firstName.isNotBlank()) {
-            currentUser.setFirstName(firstName)
-        }
-
-        val lastName: String = traits.getString("lastName").orEmpty()
-        if (lastName.isNotBlank()) {
-            currentUser.setLastName(lastName)
-        }
-
-        val gender: String = traits.getString("gender").orEmpty().uppercase(Locale.getDefault())
-        if (gender.isNotBlank()) {
-            if (MALE_TOKENS.contains(
-                    gender.uppercase(
-                            Locale.getDefault()
-                        )
-                )
-            ) {
-                currentUser.setGender(Gender.MALE)
-            } else if (FEMALE_TOKENS.contains(
-                    gender.uppercase(
-                            Locale.getDefault()
-                        )
-                )
-            ) {
-                currentUser.setGender(Gender.FEMALE)
-            }
-        }
-
-        val phone: String = traits.getString("phone").orEmpty()
-        if (phone.isNotBlank()) {
-            currentUser.setPhoneNumber(phone)
-        }
-
-        val address = traits["address"]
-        if (address != null && address is JsonObject) {
-            val city: String = address.getString("city").orEmpty()
-            if (city.isNotBlank()) {
-                currentUser.setHomeCity(city)
-            }
-            val country: String = address.getString("country").orEmpty()
-            if (country.isNotBlank()) {
-                currentUser.setCountry(country)
-            }
-        }
-
-        for (key: String in traits.keys) {
-            if (RESERVED_KEYS.contains(key)) {
-                analytics.log("Skipping reserved key $key")
-                continue
-            }
-
-            val value = traits[key]?.toContent()
-
-            if (value is Boolean) {
-                currentUser.setCustomUserAttribute(key, value)
-            } else if (value is Int) {
-                currentUser.setCustomUserAttribute(key, value)
-            } else if (value is Float) {
-                currentUser.setCustomUserAttribute(key, value)
-            } else if (value is Double) {
-                currentUser.setCustomUserAttribute(key, value)
-            } else if (value is Long) {
-                currentUser.setCustomUserAttribute(key, value)
-            } else if (value is String) {
-                try {
-                    val dateTime = Date(value)
-                    currentUser.setCustomUserAttributeToSecondsFromEpoch(key, dateTime.time)
-                } catch (_: Exception) {
-                    currentUser.setCustomUserAttribute(key, value)
-                }
-            } else if (value is List<*>) {
-                val stringValueList = mutableListOf<String>()
-                for (content in value) {
-                    stringValueList.add(content.toString())
-                }
-                if (stringValueList.size > 0) {
-                    val valueArray: Array<String?> = stringValueList.toTypedArray()
-                    currentUser.setCustomAttributeArray(
-                        key,
-                        valueArray
-                    )
-                }
-            } else if (value is Map<*, *>) {
-                try {
-                    currentUser.setCustomUserAttribute(key, JSONObject(value))
-                } catch (e: Exception) {
-                    analytics.log(
-                        "Error converting to JSONObject for key $key: ${e.message}"
-                    )
-                }
-            } else {
-                analytics.log(
-                    "Braze can't map segment value for custom Braze user "
-                        + "attribute with key $key and value $value"
-                )
             }
         }
 
@@ -377,6 +404,10 @@ class BrazeDestination(
         private const val REVENUE_KEY = "revenue"
         private const val CURRENCY_KEY = "currency"
 
+        private const val SUBSCRIPTION_GROUP_KEY = "braze_subscription_groups"
+        private const val SUBSCRIPTION_ID_KEY = "subscription_group_id"
+        private const val SUBSCRIPTION_STATE_KEY = "subscription_state_id"
+
         private val RESERVED_KEYS = listOf(
             "birthday",
             "email",
@@ -386,7 +417,8 @@ class BrazeDestination(
             "phone",
             "address",
             "anonymousId",
-            "userId"
+            "userId",
+            SUBSCRIPTION_GROUP_KEY
         )
 
         private fun JsonObject.toBrazeProperties() =
