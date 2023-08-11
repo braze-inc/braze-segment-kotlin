@@ -1,3 +1,6 @@
+## 1.4.1
+* Updated to use Braze Android SDK 26.1.1
+
 ## 1.4.0
 
 ##### Added
