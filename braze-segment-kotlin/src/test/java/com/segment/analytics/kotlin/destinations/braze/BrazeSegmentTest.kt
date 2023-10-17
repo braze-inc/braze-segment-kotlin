@@ -470,7 +470,39 @@ class BrazeSegmentTest {
 
         val identifyEvent = IdentifyEvent(
             "myUser",
-            getMockSubscriptionTraits(true)
+            getMockSubscriptionTraits(subscription = true, olderKey = false)
+        )
+        val payload = brazeDestination.identify(identifyEvent)
+        assertEquals(payload, identifyEvent)
+        verify(brazeUserMock, times(1)).addToSubscriptionGroup(any())
+        assertEquals("123-456-789", groupIdCaptor.firstValue)
+
+        // Verify the other data is handled
+        verify(brazeUserMock, times(1)).setFirstName(FIRST_NAME)
+        verify(brazeUserMock, times(1)).setLastName(LAST_NAME)
+
+        // Verify that nothing else was called (subscription data didn't turn into the custom attributes)
+        verifyNoMoreInteractions(brazeUserMock)
+    }
+
+    @Test
+    fun whenCalledWithSubscriptionDataWithFallbackKey_track_callsAddToSubscriptionGroup() {
+        val groupIdCaptor = argumentCaptor<String>()
+        val brazeUserMock: BrazeUser = mock() {
+            on { addToSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
+        }
+
+        val brazeMock = mock<Braze>() {
+            on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
+        }
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "myUser",
+            getMockSubscriptionTraits(subscription = true, olderKey = true)
         )
         val payload = brazeDestination.identify(identifyEvent)
         assertEquals(payload, identifyEvent)
@@ -502,7 +534,89 @@ class BrazeSegmentTest {
 
         val identifyEvent = IdentifyEvent(
             "myUser",
-            getMockSubscriptionTraits(false)
+            getMockSubscriptionTraits(subscription = false, olderKey = false)
+        )
+        val payload = brazeDestination.identify(identifyEvent)
+        assertEquals(payload, identifyEvent)
+        verify(brazeUserMock, times(1)).removeFromSubscriptionGroup(any())
+        assertEquals("123-456-789", groupIdCaptor.firstValue)
+
+        // Verify the other data is handled
+        verify(brazeUserMock, times(1)).setFirstName(FIRST_NAME)
+        verify(brazeUserMock, times(1)).setLastName(LAST_NAME)
+
+        // Verify that nothing else was called (subscription data didn't turn into the custom attributes)
+        verifyNoMoreInteractions(brazeUserMock)
+    }
+
+    @Test
+    fun whenCalledWithUnSubscriptionDataWithOlderKey_identify_callsRemoveFromSubscriptionGroup() {
+        val groupIdCaptor = argumentCaptor<String>()
+        val brazeUserMock: BrazeUser = mock() {
+            on { removeFromSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
+        }
+
+        val brazeMock = mock<Braze>() {
+            on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
+        }
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "myUser",
+            getMockSubscriptionTraits(subscription = false, olderKey = true)
+        )
+        val payload = brazeDestination.identify(identifyEvent)
+        assertEquals(payload, identifyEvent)
+        verify(brazeUserMock, times(1)).removeFromSubscriptionGroup(any())
+        assertEquals("123-456-789", groupIdCaptor.firstValue)
+
+        // Verify the other data is handled
+        verify(brazeUserMock, times(1)).setFirstName(FIRST_NAME)
+        verify(brazeUserMock, times(1)).setLastName(LAST_NAME)
+
+        // Verify that nothing else was called (subscription data didn't turn into the custom attributes)
+        verifyNoMoreInteractions(brazeUserMock)
+    }
+
+    @Test
+    fun whenCalledWithUnSubscriptionDataWithBothKeys_identify_callsPrefersGroupState() {
+        val groupIdCaptor = argumentCaptor<String>()
+        val brazeUserMock: BrazeUser = mock() {
+            on { removeFromSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
+        }
+
+        val brazeMock = mock<Braze>() {
+            on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
+        }
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val subscriptionData = JsonArray(
+            listOf(
+                JsonObject(
+                    mapOf(
+                        "subscription_group_id" to JsonPrimitive("123-456-789"),
+                        "subscription_group_state" to JsonPrimitive("unsubscribed"),
+                        "subscription_state_id" to JsonPrimitive("subscribed")
+                    )
+                )
+            )
+        )
+
+        val contentMap = mutableMapOf(
+            "firstName" to JsonPrimitive(FIRST_NAME),
+            "lastName" to JsonPrimitive(LAST_NAME),
+            "braze_subscription_groups" to subscriptionData
+        )
+
+        val identifyEvent = IdentifyEvent(
+            "myUser",
+            JsonObject(contentMap)
         )
         val payload = brazeDestination.identify(identifyEvent)
         assertEquals(payload, identifyEvent)
@@ -582,7 +696,7 @@ class BrazeSegmentTest {
         )
     }
 
-    private fun getMockSubscriptionTraits(subscription: Boolean = true): Traits {
+    private fun getMockSubscriptionTraits(subscription: Boolean, olderKey: Boolean): Traits {
         val groupId = "123-456-789"
         val groupStatus = if (subscription) {
             "subscribed"
@@ -590,12 +704,14 @@ class BrazeSegmentTest {
             "unsubscribed"
         }
 
+        val stateKey = if (olderKey) "subscription_state_id" else "subscription_group_state"
+
         val subscriptionData = JsonArray(
             listOf(
                 JsonObject(
                     mapOf(
                         "subscription_group_id" to JsonPrimitive(groupId),
-                        "subscription_state_id" to JsonPrimitive(groupStatus)
+                        stateKey to JsonPrimitive(groupStatus)
                     )
                 )
             )

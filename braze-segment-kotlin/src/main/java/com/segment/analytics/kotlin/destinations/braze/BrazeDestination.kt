@@ -176,17 +176,16 @@ class BrazeDestination(
                 subscriptions?.forEach { subscriptionInfo ->
                     if (subscriptionInfo != null && subscriptionInfo is JsonObject) {
                         val groupId = subscriptionInfo.getString(SUBSCRIPTION_ID_KEY)
-                        val groupState = subscriptionInfo.getString(SUBSCRIPTION_STATE_KEY)
+                        val groupState = subscriptionInfo.getString(SUBSCRIPTION_GROUP_STATE_KEY) ?:
+                            subscriptionInfo.getString(SUBSCRIPTION_STATE_ID_KEY)
                         if (!groupId.isNullOrBlank()) {
                             when (groupState) {
                                 "subscribed" -> {
                                     currentUser.addToSubscriptionGroup(groupId)
                                 }
-
                                 "unsubscribed" -> {
                                     currentUser.removeFromSubscriptionGroup(groupId)
                                 }
-
                                 else -> {
                                     analytics.log(
                                         "Unrecognized Braze subscription state: $groupState."
@@ -280,7 +279,7 @@ class BrazeDestination(
                     analytics.log("Skipping reserved key $key")
                     continue
                 }
-                
+
                 val value = traits[key]?.toContent()
 
                 if (value is Boolean) {
@@ -406,7 +405,9 @@ class BrazeDestination(
 
         private const val SUBSCRIPTION_GROUP_KEY = "braze_subscription_groups"
         private const val SUBSCRIPTION_ID_KEY = "subscription_group_id"
-        private const val SUBSCRIPTION_STATE_KEY = "subscription_state_id"
+        private const val SUBSCRIPTION_GROUP_STATE_KEY = "subscription_group_state"
+        private const val SUBSCRIPTION_STATE_ID_KEY = "subscription_state_id"
+
 
         private val RESERVED_KEYS = listOf(
             "birthday",

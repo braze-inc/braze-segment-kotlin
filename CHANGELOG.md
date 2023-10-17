@@ -1,4 +1,12 @@
+## 1.4.2
+
+#### Added
+- Adds the key `subscription_group_state` for setting the subscribed/unsubscribed status when using `braze_subscription_groups` in the Identify call.
+    - Favor this value instead of `subscription_state_id`.
+
 ## 1.4.1
+
+##### Changed
 * Updated to use Braze Android SDK 26.1.1
 
 ## 1.4.0
