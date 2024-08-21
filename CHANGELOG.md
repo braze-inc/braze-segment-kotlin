@@ -1,7 +1,13 @@
+## 2.0.0
+
+##### Changed
+* Updated to use Braze Android SDK 32.1.0 and analytics-kotlin 1.16.3.
+* Updated to allow you to use direct Braze SDK calls without additional entries in your build.gradle file.
+
 ## 1.4.2
 
 #### Added
-- Adds the key `subscription_group_state` for setting the subscribed/unsubscribed status when using `braze_subscription_groups` in the Identify call.
+* Adds the key `subscription_group_state` for setting the subscribed/unsubscribed status when using `braze_subscription_groups` in the Identify call.
     - Favor this value instead of `subscription_state_id`.
 
 ## 1.4.1

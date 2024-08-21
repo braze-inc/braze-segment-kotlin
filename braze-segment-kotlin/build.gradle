@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace 'com.segment.analytics.kotlin.destinations.braze'
-    compileSdk 33
+    compileSdk 35
 
     defaultConfig {
         multiDexEnabled = true
-        minSdk 16
-        targetSdk 33
+        minSdk 21
+        targetSdk 34
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -34,7 +34,7 @@ android {
 }
 
 dependencies {
-    implementation "com.braze:android-sdk-ui:$BRAZE_SDK_VERSION"
+    api "com.braze:android-sdk-ui:$BRAZE_SDK_VERSION"
     implementation "com.segment.analytics.kotlin:android:$SEGMENT_SDK_VERSION"
     implementation "androidx.core:core-ktx:$ANDROIDX_CORE_KTX_VERSION"
     implementation "androidx.appcompat:appcompat:$APPCOMPAT_VERSION"

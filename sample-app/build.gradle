@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'com.segment.analytics.kotlin.brazesample.testapp'
-    compileSdk 33
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.segment.analytics.kotlin.destinations.braze"
-        minSdk 16
-        targetSdk 33
+        minSdk 21
+        targetSdk 35
         versionCode 1
         versionName "1.0"
         multiDexEnabled = true
@@ -38,7 +38,6 @@ android {
 
 dependencies {
     implementation project(path: ':braze-segment-kotlin')
-    implementation "com.braze:android-sdk-base:$BRAZE_SDK_VERSION"
     implementation "com.segment.analytics.kotlin:core:$SEGMENT_SDK_VERSION"
     implementation "com.segment.analytics.kotlin:android:$SEGMENT_SDK_VERSION"
     implementation "androidx.core:core-ktx:$ANDROIDX_CORE_KTX_VERSION"

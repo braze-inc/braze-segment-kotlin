@@ -407,8 +407,6 @@ class BrazeDestination(
         private const val SUBSCRIPTION_ID_KEY = "subscription_group_id"
         private const val SUBSCRIPTION_GROUP_STATE_KEY = "subscription_group_state"
         private const val SUBSCRIPTION_STATE_ID_KEY = "subscription_state_id"
-
-
         private val RESERVED_KEYS = listOf(
             "birthday",
             "email",
