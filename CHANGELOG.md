@@ -1,3 +1,17 @@
+## 3.0.0
+
+#### Breaking
+* Updated Braze Android SDK [from 32.1.0 to 35.0.0](https://github.com/braze-inc/braze-android-sdk/compare/v32.1.0...v35.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+  * The minimum required Android SDK version is 25. See more details [here](https://github.com/braze-inc/braze-android-sdk?tab=readme-ov-file#version-information).
+
+#### Fixed
+* Fixes the internal `logPurchaseForSingleItem` method call to check for product IDs using the key `"product_id"` instead of `"id"`.
+  * This change is backwards compatible, but in the event that both keys are provided, `"product_id"` will take precedence over `"id"`.
+  * This aligns the Braze Segment plugin with the [V2 Ecommerce Events Spec](https://segment.com/docs/connections/spec/ecommerce/v2/).
+
+#### Added
+* Updated Analytics-Kotlin [from 1.16.3 to 1.19.1](https://github.com/segmentio/analytics-kotlin/compare/1.16.3...1.19.1).
+
 ## 2.0.0
 
 ##### Changed

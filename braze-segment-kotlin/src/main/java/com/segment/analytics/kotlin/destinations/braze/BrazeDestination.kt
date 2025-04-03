@@ -124,7 +124,8 @@ class BrazeDestination(
                     properties["products"]?.safeJsonArray?.let { array ->
                         for (product in array) {
                             logPurchaseForSingleItem(
-                                product.jsonObject.getString("id"),
+                                // This SDK previously checked for `"id"` but will now accept `"product_id"` as the first default, according to the Segment V2 spec.
+                                product.jsonObject.getString("product_id") ?: product.jsonObject.getString("id"),
                                 currencyCode,
                                 BigDecimal.valueOf(
                                     product.jsonObject.getDouble("price") ?: 0.0
