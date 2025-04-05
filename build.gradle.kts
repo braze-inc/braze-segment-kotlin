@@ -22,11 +22,11 @@ buildscript {
     }
     dependencies {
         val KOTLIN_VERSION: String by project
-        val GRADLE_VERSION: String by project
+        val ANDROID_GRADLE_PLUGIN_VERSION: String by project
         val DETEKT_VERSION: String by project
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$KOTLIN_VERSION")
         classpath("org.jetbrains.kotlin:kotlin-serialization:$KOTLIN_VERSION")
-        classpath("com.android.tools.build:gradle:$GRADLE_VERSION")
+        classpath("com.android.tools.build:gradle:$ANDROID_GRADLE_PLUGIN_VERSION")
         classpath("io.gitlab.arturbosch.detekt:detekt-gradle-plugin:$DETEKT_VERSION")
     }
 }

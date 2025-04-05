@@ -124,7 +124,8 @@ class BrazeDestination(
                     properties["products"]?.safeJsonArray?.let { array ->
                         for (product in array) {
                             logPurchaseForSingleItem(
-                                // This SDK previously checked for `"id"` but will now accept `"product_id"` as the first default, according to the Segment V2 spec.
+                                // This SDK previously checked for `"id"` but will now accept `"product_id"` as the first default,
+                                // according to the Segment V2 spec.
                                 product.jsonObject.getString("product_id") ?: product.jsonObject.getString("id"),
                                 currencyCode,
                                 BigDecimal.valueOf(
@@ -169,7 +170,7 @@ class BrazeDestination(
         }
 
         val traits: Traits = payload.traits
-        analytics.log("Traits in BrazeDestination::identify = ${traits.toString()}")
+        analytics.log("Traits in BrazeDestination::identify = $traits")
 
         braze.getCurrentUser { currentUser ->
             if (traits.containsKey(SUBSCRIPTION_GROUP_KEY)) {
@@ -219,7 +220,7 @@ class BrazeDestination(
                 } catch (exception: Exception) {
                     analytics.log(
                         "birthday was in an incorrect format, skipping. "
-                                + "The exception is $exception."
+                            + "The exception is $exception."
                     )
                 }
             }
@@ -241,19 +242,9 @@ class BrazeDestination(
 
             val gender: String = traits.getString("gender").orEmpty().uppercase(Locale.getDefault())
             if (gender.isNotBlank()) {
-                if (MALE_TOKENS.contains(
-                        gender.uppercase(
-                            Locale.getDefault()
-                        )
-                    )
-                ) {
+                if (MALE_TOKENS.contains(gender.uppercase(Locale.getDefault()))) {
                     currentUser.setGender(Gender.MALE)
-                } else if (FEMALE_TOKENS.contains(
-                        gender.uppercase(
-                            Locale.getDefault()
-                        )
-                    )
-                ) {
+                } else if (FEMALE_TOKENS.contains(gender.uppercase(Locale.getDefault()))) {
                     currentUser.setGender(Gender.FEMALE)
                 }
             }
@@ -323,7 +314,7 @@ class BrazeDestination(
                 } else {
                     analytics.log(
                         "Braze can't map segment value for custom Braze user "
-                                + "attribute with key $key and value $value"
+                            + "attribute with key $key and value $value"
                     )
                 }
             }
