@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace 'com.segment.analytics.kotlin.destinations.braze'
-    compileSdk 35
+    compileSdk safeExtGet('compileSdk', 35)
 
     defaultConfig {
         multiDexEnabled = true
-        minSdk 25
-        targetSdk 35
+        minSdkVersion safeExtGet('minSdkVersion', 21)
+        targetSdk safeExtGet('targetSdk', 35)
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
