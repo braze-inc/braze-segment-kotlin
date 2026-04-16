@@ -14,6 +14,7 @@ import com.braze.support.getOptionalString
 import com.segment.analytics.kotlin.core.*
 import com.segment.analytics.kotlin.core.platform.Plugin
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.json.JSONObject
@@ -125,11 +126,11 @@ class BrazeSegmentTest {
 
         val jsonCapture = argumentCaptor<JSONObject>()
         val arrayCapture = argumentCaptor<Array<String?>>()
-        val brazeUserMock: BrazeUser = mock() {
+        val brazeUserMock: BrazeUser = mock {
             on { setCustomUserAttribute(any(), jsonCapture.capture(), any()) }.thenReturn(true)
             on { setCustomAttributeArray(any(), arrayCapture.capture()) }.thenReturn(true)
         }
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -143,9 +144,9 @@ class BrazeSegmentTest {
         verify(brazeUserMock, times(1)).setDateOfBirth(BIRTHDAY_YEAR, Month.valueOf(BIRTHDAY_MONTH), BIRTHDAY_DAY)
         verify(brazeUserMock, times(1)).setEmail(EMAIL)
         verify(brazeUserMock, times(1)).setFirstName(FIRST_NAME)
+        verify(brazeUserMock, times(1)).setLastName(LAST_NAME)
         verify(brazeUserMock, times(1)).setGender(Gender.MALE)
         verify(brazeUserMock, times(1)).setHomeCity(CITY)
-        verify(brazeUserMock, times(1)).setLastName(LAST_NAME)
         verify(brazeUserMock, times(1)).setPhoneNumber(PHONE)
 
         verify(brazeUserMock, times(1)).setCustomUserAttribute(CUSTOM_STRING_KEY, CUSTOM_STRING)
@@ -176,10 +177,36 @@ class BrazeSegmentTest {
     }
 
     @Test
+    fun whenCalledWithNullFullTraits_identify_brazeUserSetFunctionsAreCalled() {
+        val userId = "bob"
+
+        val brazeUserMock: BrazeUser = mock()
+        val brazeMock = mock<Braze> {
+            on { currentUser } doReturn brazeUserMock
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
+        }
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(userId, getMockNullTraits())
+        brazeDestination.identify(identifyEvent)
+        verify(brazeUserMock, times(1)).setCountry(null)
+        verify(brazeUserMock, times(1)).setEmail(null)
+        verify(brazeUserMock, times(1)).setFirstName(null)
+        verify(brazeUserMock, times(1)).setLastName(null)
+        verify(brazeUserMock, times(1)).setGender(null)
+        verify(brazeUserMock, times(1)).setHomeCity(null)
+        verify(brazeUserMock, times(1)).setPhoneNumber(null)
+
+        verifyNoMoreInteractions(brazeUserMock)
+    }
+
+    @Test
     fun whenCalledWithArray_identify_brazeUserSetFunctionsAreCalled() {
         val userId = "bob"
         val brazeUserMock: BrazeUser = mock()
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -212,7 +239,7 @@ class BrazeSegmentTest {
         val userId = "bob"
 
         val brazeUserMock: BrazeUser = mock()
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
         }
         brazeDestination.brazeTestingMock = brazeMock
@@ -254,6 +281,81 @@ class BrazeSegmentTest {
     }
 
     @Test
+    fun whenIdentifyWithUserIdAndSdkAuthSignature_callsChangeUserWithSignature() {
+        val brazeMock = mock<Braze>()
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "user123",
+            JsonObject(
+                mapOf("braze_sdk_auth_signature" to JsonPrimitive(TEST_SDK_AUTH_SIGNATURE))
+            )
+        )
+        brazeDestination.identify(identifyEvent)
+
+        verify(brazeMock, times(1)).changeUser(eq("user123"), eq(TEST_SDK_AUTH_SIGNATURE))
+        verify(brazeMock, never()).setSdkAuthenticationSignature(any<String>())
+    }
+
+    @Test
+    fun whenIdentifyWithUserIdAndNoSdkAuthSignature_callsChangeUserOnly() {
+        val brazeMock = mock<Braze>()
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "user123",
+            JsonObject(mapOf("email" to JsonPrimitive("abc@braze.com")))
+        )
+        brazeDestination.identify(identifyEvent)
+
+        verify(brazeMock, times(1)).changeUser(eq("user123"))
+        verify(brazeMock, never()).setSdkAuthenticationSignature(any<String>())
+    }
+
+    @Test
+    fun whenIdentifyWithBlankUserIdAndSdkAuthSignature_callsSetSdkAuthenticationSignature() {
+        val brazeMock = mock<Braze>()
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "",
+            JsonObject(
+                mapOf("braze_sdk_auth_signature" to JsonPrimitive(TEST_SDK_AUTH_SIGNATURE))
+            )
+        )
+        brazeDestination.identify(identifyEvent)
+
+        verify(brazeMock, times(1)).setSdkAuthenticationSignature(eq(TEST_SDK_AUTH_SIGNATURE))
+        verify(brazeMock, never()).changeUser(any<String>(), anyOrNull<String>())
+    }
+
+    @Test
+    fun whenIdentifyWithSdkAuthSignature_traitIsNotSetAsCustomUserAttribute() {
+        val brazeUserMock: BrazeUser = mock()
+        val brazeMock = mock<Braze> {
+            on { getCurrentUser(any()) }.doAnswer { invocation ->
+                (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
+            }
+        }
+        brazeDestination.brazeTestingMock = brazeMock
+
+        val identifyEvent = IdentifyEvent(
+            "user123",
+            JsonObject(
+                mapOf(
+                    "braze_sdk_auth_signature" to JsonPrimitive(TEST_SDK_AUTH_SIGNATURE),
+                    "myCustomTrait" to JsonPrimitive("value")
+                )
+            )
+        )
+        brazeDestination.identify(identifyEvent)
+
+        verify(brazeMock).changeUser(eq("user123"), eq(TEST_SDK_AUTH_SIGNATURE))
+        verify(brazeUserMock, times(1)).setCustomUserAttribute(eq("myCustomTrait"), eq("value"))
+        verify(brazeUserMock, never()).setCustomUserAttribute(eq("braze_sdk_auth_signature"), any<String>())
+    }
+
+    @Test
     fun whenCalled_track_callsLogCustomEvent() {
         val brazeMock = mock<Braze>()
         brazeDestination.brazeTestingMock = brazeMock
@@ -270,7 +372,7 @@ class BrazeSegmentTest {
     @Test
     fun whenCalledWithProperties_track_callsLogCustomEventWithProperties() {
         val brazePropertiesCaptor = argumentCaptor<BrazeProperties>()
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { logCustomEvent(any(), brazePropertiesCaptor.capture()) }.then { }
         }
         brazeDestination.brazeTestingMock = brazeMock
@@ -289,13 +391,13 @@ class BrazeSegmentTest {
         assertEquals(1, brazePropertiesCaptor.allValues.size)
         val brazeProperties = brazePropertiesCaptor.firstValue
         assertEquals(1, brazeProperties.size)
-        assertEquals("A", brazeProperties.get("property1"))
+        assertEquals("A", brazeProperties["property1"])
     }
 
     @Test
     fun whenCalledWithEventNameOrderCompleted_track_callsLogPurchase() {
         val brazePropertiesCaptor = argumentCaptor<BrazeProperties>()
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { logPurchase(any(), any(), any(), brazePropertiesCaptor.capture()) }.then { }
         }
         brazeDestination.brazeTestingMock = brazeMock
@@ -415,10 +517,10 @@ class BrazeSegmentTest {
     fun whenEventNameIsInstallAttributed_track_callsSetAttributionData() {
         val attributionDataCaptor = argumentCaptor<AttributionData>()
 
-        val brazeUserMock: BrazeUser = mock() {
+        val brazeUserMock: BrazeUser = mock {
             on { setAttributionData(attributionDataCaptor.capture()) }.then { }
         }
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -456,11 +558,11 @@ class BrazeSegmentTest {
     @Test
     fun whenCalledWithSubscriptionData_track_callsAddToSubscriptionGroup() {
         val groupIdCaptor = argumentCaptor<String>()
-        val brazeUserMock: BrazeUser = mock() {
+        val brazeUserMock: BrazeUser = mock {
             on { addToSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
         }
 
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -488,11 +590,11 @@ class BrazeSegmentTest {
     @Test
     fun whenCalledWithSubscriptionDataWithFallbackKey_track_callsAddToSubscriptionGroup() {
         val groupIdCaptor = argumentCaptor<String>()
-        val brazeUserMock: BrazeUser = mock() {
+        val brazeUserMock: BrazeUser = mock {
             on { addToSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
         }
 
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -520,11 +622,11 @@ class BrazeSegmentTest {
     @Test
     fun whenCalledWithUnSubscriptionData_identify_callsRemoveFromSubscriptionGroup() {
         val groupIdCaptor = argumentCaptor<String>()
-        val brazeUserMock: BrazeUser = mock() {
+        val brazeUserMock: BrazeUser = mock {
             on { removeFromSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
         }
 
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -552,11 +654,11 @@ class BrazeSegmentTest {
     @Test
     fun whenCalledWithUnSubscriptionDataWithOlderKey_identify_callsRemoveFromSubscriptionGroup() {
         val groupIdCaptor = argumentCaptor<String>()
-        val brazeUserMock: BrazeUser = mock() {
+        val brazeUserMock: BrazeUser = mock {
             on { removeFromSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
         }
 
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -584,11 +686,11 @@ class BrazeSegmentTest {
     @Test
     fun whenCalledWithUnSubscriptionDataWithBothKeys_identify_callsPrefersGroupState() {
         val groupIdCaptor = argumentCaptor<String>()
-        val brazeUserMock: BrazeUser = mock() {
+        val brazeUserMock: BrazeUser = mock {
             on { removeFromSubscriptionGroup(groupIdCaptor.capture()) }.thenReturn(true)
         }
 
-        val brazeMock = mock<Braze>() {
+        val brazeMock = mock<Braze> {
             on { currentUser } doReturn brazeUserMock
             on { getCurrentUser(any()) }.doAnswer { invocation ->
                 (invocation.arguments[0] as IValueCallback<BrazeUser>).onSuccess(brazeUserMock)
@@ -648,6 +750,28 @@ class BrazeSegmentTest {
         val integrations = JsonObject(mapOf("Appboy" to brazeJsonSettings))
 
         return Settings(integrations)
+    }
+
+    private fun getMockNullTraits(): Traits {
+        val address = JsonObject(
+            mapOf(
+                "street" to JsonNull,
+                "city" to JsonNull,
+                "state" to JsonNull,
+                "country" to JsonNull,
+            )
+        )
+        return JsonObject(
+            content = mapOf(
+                "firstName" to JsonNull,
+                "lastName" to JsonNull,
+                "birthday" to JsonNull,
+                "email" to JsonNull,
+                "gender" to JsonNull,
+                "phone" to JsonNull,
+                "address" to address,
+            )
+        )
     }
 
     private fun getMockTraits(): Traits {
@@ -777,5 +901,7 @@ class BrazeSegmentTest {
         private const val CAMPAIGN_NAME = "campname"
         private const val CAMPAIGN_GROUP = "campgroup"
         private const val CAMPAIGN_CREATIVE = "campcreative"
+
+        private const val TEST_SDK_AUTH_SIGNATURE = "test-signature-abc"
     }
 }

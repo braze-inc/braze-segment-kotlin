@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MultiLineIfElse:BrazeDestination.kt$BrazeDestination$properties.getString(CURRENCY_KEY)</ID>
+  </CurrentIssues>
+</SmellBaseline>

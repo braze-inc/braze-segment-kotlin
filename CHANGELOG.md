@@ -1,3 +1,24 @@
+## 5.0.0
+
+#### Breaking
+- Updated Braze Android SDK [from 36.0.0 to 42.0.0](https://github.com/braze-inc/braze-android-sdk/compare/v36.0.0...v42.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+- Updated the source and target build compatibility from Java 8 to Java 11.
+
+#### Added
+- Updated Analytics-Kotlin [from 1.19.1 to 1.20.0](https://github.com/segmentio/analytics-kotlin/compare/1.19.1...1.20.0).
+- Added the ability to unset the following user attributes by setting them to `JsonNull` in the `identify` call:
+  - First name
+  - Last name
+  - Phone number
+  - Email
+  - Gender
+  - Home city
+  - Country
+- Added support for SDK Authentication.
+  - To enable SDK Authentication in your app, add `<bool name="com_braze_sdk_authentication_enabled">true</bool>` to the `braze.xml` file.
+  - In order to set the SDK authentication signature, include the key "braze_sdk_auth_signature" in the `identify` call.
+- Added the ability to conditionally import `com.braze:android-sdk-location` by setting `importBrazeLocationLibrary=true` in your `gradle.properties`. This removes the need to explicitly add the location dependency in your `build.gradle`.
+
 ## 4.0.1
 
 > [!IMPORTANT]

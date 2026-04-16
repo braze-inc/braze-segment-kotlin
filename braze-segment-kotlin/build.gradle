@@ -5,6 +5,10 @@ plugins {
 }
 
 
+def shouldImportBrazeLocationLibrary() {
+    return project.hasProperty("importBrazeLocationLibrary") && project.importBrazeLocationLibrary == "true"
+}
+
 android {
     namespace 'com.segment.analytics.kotlin.destinations.braze'
     compileSdk safeExtGet('compileSdk', 35)
@@ -25,16 +29,19 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '11'
     }
 }
 
 dependencies {
     api "com.braze:android-sdk-ui:$BRAZE_SDK_VERSION"
+    if (shouldImportBrazeLocationLibrary()) {
+        api "com.braze:android-sdk-location:$BRAZE_SDK_VERSION"
+    }
     implementation "com.segment.analytics.kotlin:android:$SEGMENT_SDK_VERSION"
     implementation "androidx.core:core-ktx:$ANDROIDX_CORE_KTX_VERSION"
     implementation "androidx.appcompat:appcompat:$APPCOMPAT_VERSION"
@@ -42,7 +49,7 @@ dependencies {
     implementation "androidx.test:core-ktx:$ANDROIDX_TEST_CORE"
     testImplementation "junit:junit:$JUNIT_VERSION"
     testImplementation "org.mockito.kotlin:mockito-kotlin:$MOCKITO_KOTLIN_VERSION"
-    testImplementation "org.robolectric:robolectric:$ROBOELECTRIC_VERSION"
+    testImplementation "org.robolectric:robolectric:$ROBOLECTRIC_VERSION"
     androidTestImplementation "androidx.test.ext:junit:$ANDROIDX_JUNIT_VERSION"
     androidTestImplementation "androidx.test.espresso:espresso-core:$ANDROIDX_ESPRESSO_VERSION"
 }
