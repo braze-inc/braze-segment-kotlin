@@ -20,6 +20,7 @@ import com.segment.analytics.kotlin.core.platform.plugins.logger.log
 import com.segment.analytics.kotlin.core.utilities.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
@@ -165,11 +166,16 @@ class BrazeDestination(
     @Suppress("LongMethod", "ComplexMethod", "NestedBlockDepth")
     override fun identify(payload: IdentifyEvent): BaseEvent {
         val userId: String = payload.userId
-        if (userId.isNotBlank()) {
+        val traits: Traits = payload.traits
+        val authSignature = traits.getString(SDK_AUTH_SIGNATURE).orEmpty()
+        if (userId.isNotBlank() && authSignature.isNotBlank()) {
+            braze.changeUser(userId, authSignature)
+        } else if (userId.isNotBlank()) {
             braze.changeUser(userId)
+        } else if (authSignature.isNotBlank()) {
+            braze.setSdkAuthenticationSignature(authSignature)
         }
 
-        val traits: Traits = payload.traits
         analytics.log("Traits in BrazeDestination::identify = $traits")
 
         braze.getCurrentUser { currentUser ->
@@ -225,45 +231,29 @@ class BrazeDestination(
                 }
             }
 
-            val email: String = traits.getString("email").orEmpty()
-            if (email.isNotBlank()) {
-                currentUser.setEmail(email)
-            }
+            setUserFieldIfValid(traits, "email") { currentUser.setEmail(it) }
+            setUserFieldIfValid(traits, "phone") { currentUser.setPhoneNumber(it) }
+            setUserFieldIfValid(traits, "firstName") { currentUser.setFirstName(it) }
+            setUserFieldIfValid(traits, "lastName") { currentUser.setLastName(it) }
 
-            val firstName: String = traits.getString("firstName").orEmpty()
-            if (firstName.isNotBlank()) {
-                currentUser.setFirstName(firstName)
-            }
-
-            val lastName: String = traits.getString("lastName").orEmpty()
-            if (lastName.isNotBlank()) {
-                currentUser.setLastName(lastName)
-            }
-
-            val gender: String = traits.getString("gender").orEmpty().uppercase(Locale.getDefault())
-            if (gender.isNotBlank()) {
-                if (MALE_TOKENS.contains(gender.uppercase(Locale.getDefault()))) {
-                    currentUser.setGender(Gender.MALE)
-                } else if (FEMALE_TOKENS.contains(gender.uppercase(Locale.getDefault()))) {
-                    currentUser.setGender(Gender.FEMALE)
+            val gender = traits["gender"]
+            if (gender == JsonNull) {
+                currentUser.setGender(null)
+            } else {
+                val genderString: String = traits.getString("gender").orEmpty().uppercase(Locale.getDefault())
+                if (genderString.isNotBlank()) {
+                    if (MALE_TOKENS.contains(genderString.uppercase(Locale.getDefault()))) {
+                        currentUser.setGender(Gender.MALE)
+                    } else if (FEMALE_TOKENS.contains(genderString.uppercase(Locale.getDefault()))) {
+                        currentUser.setGender(Gender.FEMALE)
+                    }
                 }
-            }
-
-            val phone: String = traits.getString("phone").orEmpty()
-            if (phone.isNotBlank()) {
-                currentUser.setPhoneNumber(phone)
             }
 
             val address = traits["address"]
             if (address != null && address is JsonObject) {
-                val city: String = address.getString("city").orEmpty()
-                if (city.isNotBlank()) {
-                    currentUser.setHomeCity(city)
-                }
-                val country: String = address.getString("country").orEmpty()
-                if (country.isNotBlank()) {
-                    currentUser.setCountry(country)
-                }
+                setUserFieldIfValid(address, "city") { currentUser.setHomeCity(it) }
+                setUserFieldIfValid(address, "country") { currentUser.setCountry(it) }
             }
 
             for (key: String in traits.keys) {
@@ -383,6 +373,33 @@ class BrazeDestination(
         }
     }
 
+    /*
+     * Sets user field to value provided if valid - if value is JsonNull, field gets
+     * set to null which unsets it in the Braze SDK.
+     * If value provided is a non-empty string, field is set to value.
+     *
+     * @param traits jsonObject from the identify call which field is read from.
+     * @param key key corresponding to the Braze user field.
+     * @param setter Braze method to be called when setting the user field.
+     */
+    private fun setUserFieldIfValid(
+        traits: JsonObject,
+        key: String,
+        setter: (String?) -> Unit
+    ) {
+        val value = traits[key]
+        if (value == JsonNull) {
+            analytics.log("Braze user $key set to null. Unsetting $key.")
+            setter(null)
+        } else {
+            val stringValue = traits.getString(key).orEmpty()
+            if (stringValue.isNotBlank()) {
+                analytics.log("Braze user $key set to $stringValue.")
+                setter(stringValue)
+            }
+        }
+    }
+
     companion object {
         private const val INSTALL_EVENT_NAME = "Install Attributed"
         private const val PURCHASE_EVENT_NAME_1 = "Order Completed"
@@ -399,6 +416,7 @@ class BrazeDestination(
         private const val SUBSCRIPTION_ID_KEY = "subscription_group_id"
         private const val SUBSCRIPTION_GROUP_STATE_KEY = "subscription_group_state"
         private const val SUBSCRIPTION_STATE_ID_KEY = "subscription_state_id"
+        private const val SDK_AUTH_SIGNATURE = "braze_sdk_auth_signature"
         private val RESERVED_KEYS = listOf(
             "birthday",
             "email",
@@ -409,7 +427,8 @@ class BrazeDestination(
             "address",
             "anonymousId",
             "userId",
-            SUBSCRIPTION_GROUP_KEY
+            SUBSCRIPTION_GROUP_KEY,
+            SDK_AUTH_SIGNATURE
         )
 
         private fun JsonObject.toBrazeProperties() =

@@ -20,8 +20,17 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Identify"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/identifyWithSdkAuthButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/trackButton" />
+    <Button
+        android:id="@+id/identifyWithSdkAuthButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Identify with SDK auth signature"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/identifyButton" />
 </androidx.constraintlayout.widget.ConstraintLayout>
